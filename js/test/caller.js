@@ -1,4 +1,5 @@
 // What a recorded call's caller holds: its files on disk, and its input as a caller writes it.
+import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -24,6 +25,28 @@ export async function withFiles(files, work) {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/**
+ * Starts a call with its `timeout` held back until `release` settles: the timeout still
+ * waits its whole length, but never runs out before the fake server holds, however slow
+ * the requests before the hold were. The call sets that one timer as it starts.
+ */
+export function timeoutOnceHeld(release, start) {
+  const setTimer = globalThis.setTimeout;
+  let timers = 0;
+  globalThis.setTimeout = (run, ms, ...args) => {
+    timers++;
+    return setTimer(() => release.then(() => run(...args)), ms);
+  };
+  let call;
+  try {
+    call = start();
+  } finally {
+    globalThis.setTimeout = setTimer;
+  }
+  assert.equal(timers, 1, "the call sets its timeout as it starts");
+  return call;
 }
 
 /** The recorded call, made through the method it names, with its options in JS's spelling. */

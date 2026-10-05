@@ -1,0 +1,58 @@
+{
+  "description": "uploads.create() asks for an upload's grant and answers its id and form, without uploading anything.",
+  "call": {
+    "method": "uploads.create",
+    "widget": "widget_1660",
+    "options": {
+      "field": "report",
+      "filename": "report.pdf",
+      "size": 22
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/uploads",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "field": "report",
+          "filename": "report.pdf",
+          "size": 22
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_U1p2L3o4A5d6C7r8E9a0T1e2"
+        },
+        "body": {
+          "id": "inputs/412/1660/held/7c1d/report.pdf",
+          "upload": {
+            "url": "https://abysshub-uploads.s3.amazonaws.com",
+            "fields": {
+              "key": "inputs/412/1660/held/7c1d/report.pdf",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+              "X-Amz-Signature": "fake-signature-7c1d"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "value": {
+      "id": "inputs/412/1660/held/7c1d/report.pdf",
+      "upload": {
+        "url": "https://abysshub-uploads.s3.amazonaws.com",
+        "fields": {
+          "key": "inputs/412/1660/held/7c1d/report.pdf",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+          "X-Amz-Signature": "fake-signature-7c1d"
+        }
+      }
+    }
+  }
+}

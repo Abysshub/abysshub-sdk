@@ -80,8 +80,8 @@ for (const recording of await loadExchanges()) {
         }
         assert.ok(ajv.validate(schema.schema, coerce(schema.schema, fill(sent[1]))), `${at}: header ${name}: ${ajv.errorsText()}`);
       }
-      if (response.cut) {
-        assert.equal(response.body, undefined, `${at}: a cut has no body`);
+      if (response.cut || response.hold) {
+        assert.equal(response.body, undefined, `${at}: a cut or a hold has no body`);
       } else {
         const ref = declared.content?.["application/json"]?.schema?.$ref;
         assert.ok(ref, `${at}: the ${response.status} has no JSON body in the contract`);

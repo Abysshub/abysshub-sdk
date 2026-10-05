@@ -1,0 +1,76 @@
+{
+  "description": "runs.get() with wait holds with ?wait=true; a cut hold is read again, and the run is answered when the hold ends.",
+  "call": {
+    "method": "runs.get",
+    "id": "run_8Qw7Er6Ty5Ui4Op3As2Df1Gh",
+    "options": {
+      "wait": true
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_8Qw7Er6Ty5Ui4Op3As2Df1Gh?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_G1e2T3w4A5i6T7c8U9t0A1b2"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "cut": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_8Qw7Er6Ty5Ui4Op3As2Df1Gh?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_G1e2T3w4A5i6T7c8U9t0A1b3"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_8Qw7Er6Ty5Ui4Op3As2Df1Gh",
+          "widget": "widget_131",
+          "status": "succeeded",
+          "price": 0.5,
+          "result": {
+            "approved": true,
+            "rate": 0.042
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_8Qw7Er6Ty5Ui4Op3As2Df1Gh",
+      "status": "succeeded",
+      "result": {
+        "approved": true,
+        "rate": 0.042
+      }
+    }
+  }
+}

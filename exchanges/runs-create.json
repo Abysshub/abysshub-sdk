@@ -1,0 +1,58 @@
+{
+  "description": "runs.create() presses with \"wait\": false and answers the queued run at once, without re-attaching.",
+  "call": {
+    "method": "runs.create",
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    },
+    "options": {
+      "max_price": 5
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          },
+          "max_price": 5,
+          "wait": false
+        }
+      },
+      "response": {
+        "status": 202,
+        "headers": {
+          "Location": "{base}/v1/runs/run_8Qw7Er6Ty5Ui4Op3As2Df1Gh",
+          "Request-Id": "req_C1r2E3a4T5e6Q7u8E9u0E1d2"
+        },
+        "body": {
+          "id": "run_8Qw7Er6Ty5Ui4Op3As2Df1Gh",
+          "widget": "widget_131",
+          "status": "queued",
+          "price": 0.5,
+          "result": null,
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": null,
+          "ended_at": null
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_8Qw7Er6Ty5Ui4Op3As2Df1Gh",
+      "status": "queued",
+      "started_at": null
+    }
+  }
+}

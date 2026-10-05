@@ -1,0 +1,52 @@
+{
+  "description": "With max_retries 0, a 429 raises at once.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    },
+    "client": {
+      "max_retries": 0
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "Request-Id": "req_R1a2T3e4L5i6M7i8T9e0Z1e0",
+          "Retry-After": "1"
+        },
+        "body": {
+          "error": {
+            "code": "rate_limited",
+            "message": "Too many requests from this key this minute. Wait the Retry-After seconds.",
+            "doc_url": "https://abysshub.com/documentation/api#rate_limited"
+          },
+          "request_id": "req_R1a2T3e4L5i6M7i8T9e0Z1e0"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "code": "rate_limited",
+      "status": 429,
+      "request_id": "req_R1a2T3e4L5i6M7i8T9e0Z1e0",
+      "run": null
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "description": "The press holds and keeps sending its spaces past the caller's timeout, so the connection is never silent, and the run ends only later: the library stops waiting at the timeout and raises timeout. No run was seen yet, so the error carries none. The run goes on.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    },
+    "options": {
+      "timeout": 0.3
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_2Sp4Ac6Es8Tr0Ic2Kl4Ex6Mo",
+          "Request-Id": "req_T1i2M3e4O5u6T7s8P9a0C1e2"
+        },
+        "chunks": [" ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " "],
+        "body": {
+          "id": "run_2Sp4Ac6Es8Tr0Ic2Kl4Ex6Mo",
+          "widget": "widget_131",
+          "status": "succeeded",
+          "price": 0.5,
+          "result": {
+            "approved": true,
+            "rate": 0.042
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "code": "timeout",
+      "request_id": null,
+      "run": null
+    }
+  }
+}

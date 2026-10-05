@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import platform
+from importlib import metadata
+
 import pytest
+from fake_server import Replay, load_exchanges
 
 from abysshub import Abyss, AbyssError
 
@@ -39,3 +43,17 @@ def test_no_key_raises_abyss_error() -> None:
 def test_max_retries_defaults_to_2() -> None:
     assert Abyss(api_key="abyss_sk_x").max_retries == 2
     assert Abyss(api_key="abyss_sk_x", max_retries=0).max_retries == 0
+
+
+def test_every_request_sends_the_user_agent() -> None:
+    recording = next(r for r in load_exchanges("key.json"))
+    recording["exchanges"][0]["request"]["headers"]["User-Agent"] = (
+        f"abysshub-python/{metadata.version('abysshub')} (python {platform.python_version()})"
+    )
+    server = Replay(recording, "abyss_sk_x")
+    try:
+        with Abyss(api_key="abyss_sk_x", base_url=server.base) as abyss:
+            abyss.key()
+        assert server.problems == []
+    finally:
+        server.close()

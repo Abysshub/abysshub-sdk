@@ -11,7 +11,7 @@ from fake_server import Replay, load_exchanges
 from abysshub import Abyss, AbyssError, Run
 
 KEY = "abyss_sk_fake_for_tests"
-RECORDINGS = load_exchanges("run-*.json") + load_exchanges("files-*.json")
+RECORDINGS = load_exchanges()
 
 
 def assert_fields(actual: Any, expected: Any, where: str) -> None:
@@ -51,6 +51,9 @@ def test_replay(recording: dict[str, Any]) -> None:
             if "run" in outcome:
                 assert isinstance(value, Run), f"expected a run, got {error!r}"
                 assert_fields(value, outcome["run"], "run")
+            elif "value" in outcome:
+                assert value is not None, f"expected a value, got {error!r}"
+                assert_fields(value, outcome["value"], "value")
             else:
                 assert error is not None, f"expected an AbyssError, got {value!r}"
                 fields = dict(outcome["error"])

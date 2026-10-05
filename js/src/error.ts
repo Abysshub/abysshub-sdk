@@ -1,4 +1,4 @@
-import type { Run } from "./types.js";
+import type { Run } from "./run.js";
 
 export interface AbyssErrorFields {
   code: string;

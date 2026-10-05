@@ -1,11 +1,12 @@
 // Every recorded request and response body, and every recorded header, is held to
 // contract/openapi.json, so the exchanges both libraries replay are ones /v1 can send.
+// Storage exchanges (S3 uploads and downloads) are not /v1's, and a drop sends nothing.
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { loadExchanges } from "./fake-server.js";
+import { fillEvery, loadExchanges } from "./fake-server.js";
 
 const contract = JSON.parse(await readFile(new URL("../../contract/openapi.json", import.meta.url), "utf8"));
 const ajv = new Ajv2020({ strict: false, allErrors: true });
@@ -43,8 +44,9 @@ function operation(method, path) {
 
 for (const recording of await loadExchanges()) {
   test(`contract: ${recording.name}`, () => {
-    recording.exchanges.forEach(({ request, response }, index) => {
+    recording.exchanges.forEach(({ storage, request, response }, index) => {
       const at = `exchange #${index + 1}`;
+      if (storage) return;
       const url = new URL(request.path, BASE);
       const { template, op } = operation(request.method, url.pathname);
       const params = (op.parameters ?? []).map(resolve);
@@ -65,6 +67,7 @@ for (const recording of await loadExchanges()) {
         validator(pointer, `${at}: request body`)(request.body);
       }
 
+      if (response.drop) return;
       const answer = op.responses[String(response.status)];
       assert.ok(answer, `${at}: ${template} does not answer ${response.status}`);
       const declared = resolve(answer);
@@ -82,7 +85,7 @@ for (const recording of await loadExchanges()) {
       } else {
         const ref = declared.content?.["application/json"]?.schema?.$ref;
         assert.ok(ref, `${at}: the ${response.status} has no JSON body in the contract`);
-        validator(ref.slice(1), `${at}: response body`)(response.body);
+        validator(ref.slice(1), `${at}: response body`)(fillEvery(response.body, fill));
       }
       for (const chunk of response.chunks ?? []) assert.match(chunk, /^ +$/, `${at}: a hold's chunks are spaces`);
     });

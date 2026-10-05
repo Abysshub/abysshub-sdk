@@ -1,0 +1,109 @@
+{
+  "description": "A file Field gets file(path): the library asks for an upload, sends the file to storage with the form, then presses with the upload's id.",
+  "call": {
+    "widget": "widget_1660",
+    "input": {
+      "report": {
+        "$file": "report.pdf"
+      }
+    },
+    "files": {
+      "report.pdf": "%PDF-1.7 the Q3 report"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/uploads",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "field": "report",
+          "filename": "report.pdf",
+          "size": 22
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_U1p2L3o4A5d6G7r8A9n0T1s2"
+        },
+        "body": {
+          "id": "inputs/412/1660/held/9b2c/report.pdf",
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "inputs/412/1660/held/9b2c/report.pdf",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+              "X-Amz-Signature": "fake-signature-9b2c"
+            }
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "inputs/412/1660/held/9b2c/report.pdf",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+          "X-Amz-Signature": "fake-signature-9b2c",
+          "file": "%PDF-1.7 the Q3 report"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "report": "inputs/412/1660/held/9b2c/report.pdf"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_7Hc2Vb5Nm8Qa1Ws4Ed6Rf9Tg",
+          "Request-Id": "req_P1r2E3s4S5w6I7t8H9i0D1s2"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_7Hc2Vb5Nm8Qa1Ws4Ed6Rf9Tg",
+          "widget": "widget_1660",
+          "status": "succeeded",
+          "price": 3.1,
+          "result": {
+            "pages": 4
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_7Hc2Vb5Nm8Qa1Ws4Ed6Rf9Tg",
+      "status": "succeeded"
+    }
+  }
+}

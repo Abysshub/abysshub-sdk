@@ -1,0 +1,171 @@
+{
+  "description": "A multi-file Field gets a list mixing a path, a named file in memory and an https URL: the two files upload in parallel, and the press keeps the list's order with the URL as given.",
+  "call": {
+    "widget": "widget_1660",
+    "input": {
+      "data": [
+        {
+          "$file": "jan.csv"
+        },
+        {
+          "$bytes": "feb.csv"
+        },
+        "https://example.com/sales/mar.csv"
+      ]
+    },
+    "files": {
+      "jan.csv": "month,sales\njan,120\n",
+      "feb.csv": "month,sales\nfeb,135\n"
+    }
+  },
+  "exchanges": [
+    {
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/uploads",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "field": "data",
+          "filename": "jan.csv",
+          "size": 20
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_J1a2N3u4P5l6O7a8D9s0Q1w2"
+        },
+        "body": {
+          "id": "inputs/412/1660/held/4e7a/jan.csv",
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "inputs/412/1660/held/4e7a/jan.csv",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+              "X-Amz-Signature": "fake-signature-4e7a"
+            }
+          }
+        }
+      }
+    },
+    {
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/uploads",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "field": "data",
+          "filename": "feb.csv",
+          "size": 20
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_F1e2B3u4P5l6O7a8D9s0Q1w2"
+        },
+        "body": {
+          "id": "inputs/412/1660/held/c81d/feb.csv",
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "inputs/412/1660/held/c81d/feb.csv",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+              "X-Amz-Signature": "fake-signature-c81d"
+            }
+          }
+        }
+      }
+    },
+    {
+      "parallel": true,
+      "storage": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "inputs/412/1660/held/4e7a/jan.csv",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+          "X-Amz-Signature": "fake-signature-4e7a",
+          "file": "month,sales\njan,120\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "parallel": true,
+      "storage": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "inputs/412/1660/held/c81d/feb.csv",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+          "X-Amz-Signature": "fake-signature-c81d",
+          "file": "month,sales\nfeb,135\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "data": [
+              "inputs/412/1660/held/4e7a/jan.csv",
+              "inputs/412/1660/held/c81d/feb.csv",
+              "https://example.com/sales/mar.csv"
+            ]
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_3Kd8Lf2Mg6Nh0Pj4Qk7Rl1Sm",
+          "Request-Id": "req_M1u2L3t4I5p6R7e8S9s0Q1w2"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_3Kd8Lf2Mg6Nh0Pj4Qk7Rl1Sm",
+          "widget": "widget_1660",
+          "status": "succeeded",
+          "price": 3.1,
+          "result": {
+            "months": 3
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_3Kd8Lf2Mg6Nh0Pj4Qk7Rl1Sm",
+      "status": "succeeded"
+    }
+  }
+}

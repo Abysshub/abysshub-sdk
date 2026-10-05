@@ -1,0 +1,127 @@
+{
+  "description": "The press drops before any headers: the library presses again with the same body and Idempotency-Key, reusing the upload's id without uploading again.",
+  "call": {
+    "widget": "widget_1660",
+    "input": {
+      "report": {
+        "$file": "report.pdf"
+      }
+    },
+    "files": {
+      "report.pdf": "%PDF-1.7 the Q3 report"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/uploads",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "field": "report",
+          "filename": "report.pdf",
+          "size": 22
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_D1r2O3p4U5p6L7o8A9d0Q1w2"
+        },
+        "body": {
+          "id": "inputs/412/1660/held/2f6b/report.pdf",
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "inputs/412/1660/held/2f6b/report.pdf",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+              "X-Amz-Signature": "fake-signature-2f6b"
+            }
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "inputs/412/1660/held/2f6b/report.pdf",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMC0wNVQxMDoxNTowMloifQ==",
+          "X-Amz-Signature": "fake-signature-2f6b",
+          "file": "%PDF-1.7 the Q3 report"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "report": "inputs/412/1660/held/2f6b/report.pdf"
+          }
+        }
+      },
+      "response": {
+        "drop": true
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "report": "inputs/412/1660/held/2f6b/report.pdf"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_9Zx1Cv3Bn5Mq7Wr2Ey4Tu6Io",
+          "Request-Id": "req_D1r2O3p4P5r6E7s8S9a0G1n2"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_9Zx1Cv3Bn5Mq7Wr2Ey4Tu6Io",
+          "widget": "widget_1660",
+          "status": "succeeded",
+          "price": 3.1,
+          "result": {
+            "pages": 4
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_9Zx1Cv3Bn5Mq7Wr2Ey4Tu6Io",
+      "status": "succeeded"
+    }
+  }
+}

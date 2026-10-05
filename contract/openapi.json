@@ -4,7 +4,7 @@
     "title": "AbyssHub API",
     "version": "1",
     "summary": "Run any AbyssHub Widget from your code or your agent.",
-    "description": "Run an AbyssHub Widget from code: press it with an input, then read the run until it ends.\n\n## The key\n\nSend an API Key on every request as `Authorization: Bearer abyss_sk_…`. Create one in your Cave. A key acts as you: its runs are paid from your wallet and are private to you. Read it from an environment variable such as `ABYSS_API_KEY`; never write it into code. A key is a server-side secret, so `/v1` sends no CORS headers and no browser can call it.\n\n## The one loop\n\nEvery Widget, every run length, the same code:\n\n1. `GET /v1/widgets/{id}` tells you the `price` you pay and the `input_schema` your input must match.\n2. Press: `POST /v1/widgets/{id}/runs` with `{\"input\": {…}}`. It answers `202` at once, with the run `queued`. The press never waits.\n3. Read: `GET /v1/runs/{id}` with the header `Prefer: wait`. It holds until the run ends, for at most 50 seconds, then answers `200` with the run either way. While `status` is `queued` or `running`, read again. Stop at `succeeded` or `failed`.\n\nThe same loop serves a 3-second run and a 30-minute run.\n\n## Files\n\nA file Field takes an `https` URL on a public address, which the API fetches at the press, or the `id` of an upload from `POST /v1/widgets/{id}/uploads`. A finished run lists what it wrote in `output_files`. Each `url` there is signed fresh on every read and expires: re-read the run, never store a URL.\n\n## Errors\n\nA failure is `{\"error\": {\"code\", \"message\", \"param\"?, \"doc_url\", …}, \"request_id\"}`. Branch on `error.code`, never on the status or the `message`: the message is written for a person and may change, the code never does. Every code, its status and what to do about it is listed in `components.schemas.ErrorCode`. Every response carries a `Request-Id` header; quote it to support.\n\n## Retrying safely\n\nSend an `Idempotency-Key` header with a press and you may retry it after a timeout or a dropped connection: a retry with the same key and the same body returns the first press's run, with `Idempotent-Replayed: true`, and never runs or charges twice. Reading a run is always safe to retry. On `429 rate_limited` and `409 idempotency_key_in_use`, wait the `Retry-After` seconds; no other failure sends it.\n\n## Versioning\n\nThe version is the `/v1` path; there is no version header. Within `/v1` fields, codes and optional parameters are only ever added. Nothing is renamed, removed or given a new meaning. Ignore the fields and codes you don't know. A breaking change would be `/v2`, beside `/v1`."
+    "description": "Run an AbyssHub Widget from code: press it with an input and get back the ended run, in one call.\n\n## The key\n\nSend an API Key on every request as `Authorization: Bearer abyss_sk_…`. Create one in your Cave. A key acts as you: its runs are paid from your wallet and are private to you. Read it from an environment variable such as `ABYSS_API_KEY`; never write it into code. A key is a server-side secret, so `/v1` sends no CORS headers and no browser can call it.\n\n## One call\n\nEvery Widget, every run length, the same code:\n\n1. `GET /v1/widgets/{id}` tells you the `price` you pay and the `input_schema` your input must match.\n2. Press: `POST /v1/widgets/{id}/runs` with `{\"input\": {…}}`. The press holds until the run ends: `200` and its headers, `Location` among them, come at once, then a space every 2 seconds while the run goes on, then the run once `status` is `succeeded` or `failed`. JSON allows the leading spaces, so any JSON parser reads the answer. The code goes out before the ending is known: read `status`, never the HTTP status, to learn how the run ended.\n\nThe same call serves a 3-second run and a 30-minute run.\n\n## Long runs\n\nA hold can end early with the run as it is, still `queued` or `running`: after an hour, or when the API is busy, when the press answers `202` at once. A deploy can cut a hold too. Then read the run at its `Location` with `GET /v1/runs/{id}?wait=true`, which holds the same way. If you got no headers at all, press again with the same `Idempotency-Key`: the repeat holds too.\n\nTo start a run without waiting, send `\"wait\": false` with the press. It answers `202` at once with the run `queued`; read it with `?wait=true` when you want its ending.\n\n## Files\n\nA file Field takes an `https` URL on a public address, which the API fetches at the press, or the `id` of an upload from `POST /v1/widgets/{id}/uploads`. Or send the file itself in the press, as a form: `curl -F report=@report.pdf -F note=hello`. A finished run lists what it wrote in `output_files`. Each `url` there is signed fresh on every read and expires: re-read the run, never store a URL.\n\n## Errors\n\nA failure is `{\"error\": {\"code\", \"message\", \"param\"?, \"doc_url\", …}, \"request_id\"}`. Branch on `error.code`, never on the status or the `message`: the message is written for a person and may change, the code never does. Every code, its status and what to do about it is listed in `components.schemas.ErrorCode`. Every response carries a `Request-Id` header; quote it to support.\n\n## Retrying safely\n\nSend an `Idempotency-Key` header with a press and you may retry it after a timeout or a dropped connection: a retry with the same key and the same body answers like the first press, with that press's run and `Idempotent-Replayed: true`: it holds, or answers `202` at once with `\"wait\": false`. It never runs or charges twice. Reading a run is always safe to retry. On `429 rate_limited` and `409 idempotency_key_in_use`, wait the `Retry-After` seconds; no other failure sends it.\n\n## Versioning\n\nThe version is the `/v1` path; there is no version header. Within `/v1` fields, codes and optional parameters are only ever added. Nothing is renamed, removed or given a new meaning. Ignore the fields and codes you don't know. A breaking change would be `/v2`, beside `/v1`."
   },
   "externalDocs": {
     "description": "API access: the key, the loop, files and errors.",
@@ -211,8 +211,8 @@
     "/v1/widgets/{id}/runs": {
       "post": {
         "operationId": "createRun",
-        "summary": "Press: start one run of a Widget",
-        "description": "Starts one run and answers `202` at once with the run `queued`; it never waits for the run. Then read it with `GET /v1/runs/{id}` and `Prefer: wait` until `status` is `succeeded` or `failed`.\n\nThe checks run in this order, and every refusal comes before the charge, so a refused press costs nothing: the key, the Widget, the `Idempotency-Key`, the body and the input, the URLs your file Fields name, `max_price`, the key's Spend Cap, then your wallet.\n\nThe run costs the Widget's `price` from `GET /v1/widgets/{id}`. A failed run is refunded.",
+        "summary": "Press: run a Widget and wait for its ending",
+        "description": "Starts one run and holds until it ends: `200`, `Location` and the other headers at once, then a space every 2 seconds, then the run once `status` is `succeeded` or `failed`. Read `status` to learn how it ended. After an hour the hold answers the run as it is, `running`; read it again at its `Location` with `?wait=true`.\n\nThe body is JSON, or a form (`multipart/form-data`) with one part per Field, so a local file goes in the same call. A form always holds.\n\nWith `\"wait\": false` in a JSON body, or when the API's holds are all taken, the press answers `202` at once with the run `queued`.\n\nThe checks run in this order, and every refusal comes before the charge, so a refused press costs nothing: the key, the Widget, the `Idempotency-Key`, the body and the input, a form's files and the URLs your file Fields name, `max_price`, the key's Spend Cap, then your wallet.\n\nThe run costs the Widget's `price` from `GET /v1/widgets/{id}`. A failed run is refunded.",
         "parameters": [
           {
             "$ref": "#/components/parameters/WidgetId"
@@ -235,15 +235,65 @@
                 },
                 "max_price": 5
               }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PressForm"
+              }
             }
           }
         },
         "responses": {
-          "202": {
-            "description": "The run, as the press accepted it: always `queued`. A replay of an earlier press (same `Idempotency-Key`, same body) returns that press's run as it is now, with `Idempotent-Replayed: true`.",
+          "200": {
+            "description": "The run once it has ended, `succeeded` or `failed`, or as it is after an hour's hold, `running`. The status and the headers come at once and the body after the hold, preceded by a space every 2 seconds. A replay of an earlier press holds the same way, with `Idempotent-Replayed: true`.",
             "headers": {
               "Request-Id": {
                 "$ref": "#/components/headers/RequestId"
+              },
+              "Location": {
+                "$ref": "#/components/headers/Location"
+              },
+              "Idempotent-Replayed": {
+                "$ref": "#/components/headers/IdempotentReplayed"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                },
+                "example": {
+                  "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+                  "widget": "widget_1660",
+                  "status": "succeeded",
+                  "price": 3.1,
+                  "result": {
+                    "bars": 12
+                  },
+                  "output_files": [
+                    {
+                      "path": "output.json",
+                      "size": 12,
+                      "content_type": "application/json",
+                      "url": "https://abysshub-outputs.s3.amazonaws.com/runs/9201/output/output.json?X-Amz-Signature=…"
+                    }
+                  ],
+                  "error": null,
+                  "created_at": "2026-10-04T09:15:02Z",
+                  "started_at": "2026-10-04T09:15:04Z",
+                  "ended_at": "2026-10-04T09:15:31Z"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "The run, as the press accepted it: always `queued`. Sent when the body has `\"wait\": false`, or at once when the API's holds are all taken. A replay of an earlier press (same `Idempotency-Key`, same body) answers that press's run as it is now, with `Idempotent-Replayed: true`.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Location": {
+                "$ref": "#/components/headers/Location"
               },
               "Idempotent-Replayed": {
                 "$ref": "#/components/headers/IdempotentReplayed"
@@ -360,19 +410,19 @@
     "/v1/runs/{id}": {
       "get": {
         "operationId": "getRun",
-        "summary": "Read a run, waiting for its ending",
-        "description": "The run as it is now. With `Prefer: wait` the read holds until the run ends, for at most 50 seconds, then answers `200` with the run either way; read again while `status` is `queued` or `running`. Without the header it answers at once.\n\nRe-read the run whenever you need its files: each `output_files[].url` is signed fresh on every read and expires, so never store one.",
+        "summary": "Read a run, or wait for its ending",
+        "description": "The run as it is now, at once. With `?wait=true` the read holds as the press does: `200` at once, then a space every 2 seconds, then the run once `status` is `succeeded` or `failed`, or as it is after an hour's hold. When the API's holds are all taken it answers at once.\n\nRe-read the run whenever you need its files: each `output_files[].url` is signed fresh on every read and expires, so never store one.",
         "parameters": [
           {
             "$ref": "#/components/parameters/RunId"
           },
           {
-            "$ref": "#/components/parameters/Prefer"
+            "$ref": "#/components/parameters/Wait"
           }
         ],
         "responses": {
           "200": {
-            "description": "The run.",
+            "description": "The run, as it is now or, with `?wait=true`, once it has ended.",
             "headers": {
               "Request-Id": {
                 "$ref": "#/components/headers/RequestId"
@@ -489,22 +539,23 @@
         "name": "Idempotency-Key",
         "in": "header",
         "required": false,
-        "description": "Makes the press safe to retry. Any 1 to 255 visible ASCII characters; a UUID is a good choice, new for each new press. The key is kept for 24 hours and is yours alone. A retry with the same key and the same body returns the first press's run as it is now, with `Idempotent-Replayed: true`, and never runs or charges twice. The same key with a different body is `422 idempotency_key_reused`; the same key while the first press is still being handled is `409 idempotency_key_in_use`. A refused press is not kept, so fix the request and send it again with the same key.",
+        "description": "Makes the press safe to retry. Any 1 to 255 visible ASCII characters; a UUID is a good choice, new for each new press. The key is kept for 24 hours and is yours alone. A retry with the same key and the same body answers like the first press, with its run and `Idempotent-Replayed: true`: it holds, or answers `202` at once with `\"wait\": false`. It never runs or charges twice. The same key with a different body is `422 idempotency_key_reused`; the same key while the first press is still being handled is `409 idempotency_key_in_use`. A refused press is not kept, so fix the request and send it again with the same key.",
         "schema": {
           "type": "string",
           "pattern": "^[\\x21-\\x7E]{1,255}$"
         },
         "example": "5f0c3b9e-1d7a-4c2e-9a61-0b8f2d4e7c13"
       },
-      "Prefer": {
-        "name": "Prefer",
-        "in": "header",
+      "Wait": {
+        "name": "wait",
+        "in": "query",
         "required": false,
-        "description": "`wait` holds the read until the run ends, for at most 50 seconds from when the request arrived; `wait=N` holds at most N seconds (never past 50). The answer is the run either way. The server may answer at once when it is busy, as RFC 7240 lets it, so always read again while `status` is `queued` or `running`.",
+        "description": "`true` holds the read until the run ends, as the press holds: `200` at once, a space every 2 seconds, then the run. After an hour, or when the API's holds are all taken, it answers the run as it is, so read again while `status` is `queued` or `running`.",
         "schema": {
-          "type": "string"
+          "type": "boolean",
+          "default": false
         },
-        "example": "wait"
+        "example": true
       },
       "Limit": {
         "name": "limit",
@@ -544,6 +595,14 @@
         "schema": {
           "type": "integer",
           "minimum": 0
+        }
+      },
+      "Location": {
+        "description": "Where the run is read: `GET /v1/runs/{id}`. After a cut hold, read it there with `?wait=true`.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uri"
         }
       },
       "IdempotentReplayed": {
@@ -973,7 +1032,36 @@
           "max_price": {
             "type": "number",
             "description": "The most you will pay for this run. If the Widget's `price` has risen above it, the press is `400 price_above_max` and nothing is charged."
+          },
+          "wait": {
+            "type": "boolean",
+            "default": true,
+            "description": "`false` answers `202` at once with the run `queued`, without waiting for its ending. Left out, the press holds until the run ends."
           }
+        }
+      },
+      "PressForm": {
+        "type": "object",
+        "description": "A press as a form, so cURL, or a language with no library, sends a local file in one call: `curl -F report=@report.pdf -F note=hello`. Each part is one Field, named by the Field's name.\n\nA file part is held for the run under your own uploads, to the Field's `maxFileSizeMB`, else 512 MB; a file the Field refuses is `held_input_*`, with `param` naming the Field. A text part is the Field's value as text: a number Field takes `250000`, a date `2026-10-05`, a choice its option, and a file Field an `https` URL or an upload id. A list repeats the name with `[]`: `-F \"tags[]=a\" -F \"tags[]=b\"`, or `-F \"photos[]=@a.png\" -F \"photos[]=@b.png\"`.\n\nA form carries input only. A part that names no Field is `invalid_input`, with `param` naming it; `max_price` goes in a JSON body. An `Idempotency-Key` works with a form as with JSON: the same parts, with the same files, replay.",
+        "additionalProperties": {
+          "anyOf": [
+            {
+              "type": "string",
+              "description": "A text part: the Field's value as text."
+            },
+            {
+              "type": "string",
+              "format": "binary",
+              "description": "A file part, for a file Field."
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "A list: the part's name repeated with `[]`."
+            }
+          ]
         }
       },
       "Run": {
@@ -1234,7 +1322,7 @@
           {
             "const": "invalid_request",
             "x-status": 422,
-            "description": "Fix the part `param` names (null when the body is not a JSON object): a press takes only `input` and `max_price`, an upload only `field`, `filename` and `size`, the run list only `limit` and `starting_after`, and an `Idempotency-Key` is 1 to 255 visible ASCII characters."
+            "description": "Fix the part `param` names (null when the body is not a JSON object): a press takes only `input`, `max_price` and `wait` (a boolean), an upload only `field`, `filename` and `size`, the run list only `limit` and `starting_after`, and an `Idempotency-Key` is 1 to 255 visible ASCII characters."
           },
           {
             "const": "invalid_input",

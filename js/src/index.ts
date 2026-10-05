@@ -1,5 +1,6 @@
 export {
   Abyss,
+  Abyss as default,
   type AbyssOptions,
   type CallOptions,
   type GetRunOptions,

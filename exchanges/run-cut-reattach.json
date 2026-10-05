@@ -1,0 +1,80 @@
+{
+  "description": "A deploy cuts the hold after its headers and a few spaces: the library re-attaches through Location with ?wait=true.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_2Mn3Bv4Cx5Zl6Kj7Hg8Fd9Sa",
+          "Request-Id": "req_Z9x8C7v6B5n4M3l2K1j0H9g8"
+        },
+        "chunks": [
+          " ",
+          " ",
+          " "
+        ],
+        "cut": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_2Mn3Bv4Cx5Zl6Kj7Hg8Fd9Sa?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_F7d6S5a4Q3w2E1r0T9y8U7i6"
+        },
+        "chunks": [
+          " ",
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_2Mn3Bv4Cx5Zl6Kj7Hg8Fd9Sa",
+          "widget": "widget_131",
+          "status": "succeeded",
+          "price": 0.5,
+          "result": {
+            "approved": true,
+            "rate": 0.042
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_2Mn3Bv4Cx5Zl6Kj7Hg8Fd9Sa",
+      "status": "succeeded"
+    }
+  }
+}

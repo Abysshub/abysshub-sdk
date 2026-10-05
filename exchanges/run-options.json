@@ -1,0 +1,62 @@
+{
+  "description": "The caller sets max_price and its own Idempotency-Key: the press sends both as given.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    },
+    "options": {
+      "max_price": 5,
+      "idempotency_key": "order-8812-attempt"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "order-8812-attempt"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          },
+          "max_price": 5
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_4Rt5Yu6Io7Pa8Sd9Fg0Hj1Kl",
+          "Request-Id": "req_B1n2M3q4W5e6R7t8Y9u0I1o2"
+        },
+        "chunks": [
+          " "
+        ],
+        "body": {
+          "id": "run_4Rt5Yu6Io7Pa8Sd9Fg0Hj1Kl",
+          "widget": "widget_131",
+          "status": "succeeded",
+          "price": 0.5,
+          "result": {
+            "approved": true,
+            "rate": 0.042
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_4Rt5Yu6Io7Pa8Sd9Fg0Hj1Kl",
+      "status": "succeeded"
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "description": "The press is refused before any run: it raises with the error's code and param, and no run.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "Request-Id": "req_V5b6N7m8Q9w0E1r2T3y4U5i6"
+        },
+        "body": {
+          "error": {
+            "code": "invalid_input",
+            "message": "The input does not match this Widget's input_schema (GET /v1/widgets/{id}): The amount field must be at most 100000.",
+            "param": "amount",
+            "doc_url": "https://abysshub.com/documentation/api#invalid_input"
+          },
+          "request_id": "req_V5b6N7m8Q9w0E1r2T3y4U5i6"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "code": "invalid_input",
+      "message": "The input does not match this Widget's input_schema (GET /v1/widgets/{id}): The amount field must be at most 100000.",
+      "param": "amount",
+      "doc_url": "https://abysshub.com/documentation/api#invalid_input",
+      "request_id": "req_V5b6N7m8Q9w0E1r2T3y4U5i6",
+      "run": null
+    }
+  }
+}

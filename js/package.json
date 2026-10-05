@@ -1,0 +1,20 @@
+{
+  "name": "abysshub",
+  "version": "0.0.0",
+  "description": "The official JavaScript library for the Abyss API.",
+  "license": "MIT",
+  "homepage": "https://github.com/Abysshub/abysshub-sdk/tree/main/js#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abysshub/abysshub-sdk.git",
+    "directory": "js"
+  },
+  "bugs": "https://github.com/Abysshub/abysshub-sdk/issues",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

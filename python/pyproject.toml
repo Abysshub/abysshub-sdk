@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "abysshub"
+version = "0.0.0"
+description = "The official Python library for the Abyss API."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+dependencies = []
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Typing :: Typed",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.urls]
+Homepage = "https://abysshub.com"
+Source = "https://github.com/Abysshub/abysshub-sdk"
+Issues = "https://github.com/Abysshub/abysshub-sdk/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,112 @@
+# The only workflow that publishes, through trusted publishing; no token is stored.
+# A merge to main publishes a pre-release in the `next` environment (main only).
+# A published vX.Y.Z Release publishes it in the `release` environment, which waits
+# for a maintainer. Agents never edit this file (CLAUDE.md, "Releases").
+name: release
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.event_name }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  version:
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      npm: ${{ steps.version.outputs.npm }}
+      pypi: ${{ steps.version.outputs.pypi }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # A release is its tag. A pre-release is the patch after the newest vX.Y.Z tag
+      # on main, plus the commits since it: 0.1.1-dev.4 on npm, 0.1.1.dev4 on PyPI.
+      - id: version
+        shell: bash
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = release ]; then
+            v="${GITHUB_REF_NAME#v}"
+            if ! [[ "$v" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::A release is tagged vX.Y.Z, not $GITHUB_REF_NAME"
+              exit 1
+            fi
+            printf 'npm=%s\npypi=%s\ntag=latest\n' "$v" "$v" >> "$GITHUB_OUTPUT"
+          else
+            last=$(git tag --merged HEAD --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+            IFS=. read -r major minor patch <<< "${last:-v0.0.0}"
+            next="${major#v}.$minor.$((patch + 1))"
+            n=$(git rev-list --count ${last:+"$last.."}HEAD)
+            printf 'npm=%s\npypi=%s\ntag=next\n' "$next-dev.$n" "$next.dev$n" >> "$GITHUB_OUTPUT"
+          fi
+          cat "$GITHUB_OUTPUT"
+
+  npm:
+    needs: version
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'release' && 'release' || 'next' }}
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: js
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      # Trusted publishing needs npm 11.5.1 or newer, which Node 24 ships.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: npm version "$VERSION" --no-git-tag-version
+        env:
+          VERSION: ${{ needs.version.outputs.npm }}
+      - run: npm publish --tag "$TAG"
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+
+  pypi:
+    needs: version
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'release' && 'release' || 'next' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Build
+        shell: bash
+        run: |
+          sed -i "s/^version = \"0\.0\.0\"$/version = \"$VERSION\"/" python/pyproject.toml
+          grep -qx "version = \"$VERSION\"" python/pyproject.toml
+          pip install build
+          python -m build python
+        env:
+          VERSION: ${{ needs.version.outputs.pypi }}
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist/

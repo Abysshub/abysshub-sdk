@@ -32,10 +32,9 @@ export function perform(abyss, call, input) {
   const waiting = { timeout };
   switch (call.method ?? "run") {
     case "run":
-    case "runs.create": {
-      const press = call.method === "runs.create" ? abyss.runs.create : abyss.run.bind(abyss);
-      return press(call.widget, input, { maxPrice: options.max_price, idempotencyKey: options.idempotency_key, ...waiting });
-    }
+      return abyss.run(call.widget, input, { ...pressOptions(options), ...waiting });
+    case "runs.create":
+      return abyss.runs.create(call.widget, input, { ...pressOptions(options), ...waiting });
     case "runs.get":
       return abyss.runs.get(call.id, { wait: options.wait, ...waiting });
     case "runs.list":
@@ -49,4 +48,8 @@ export function perform(abyss, call, input) {
     default:
       throw new Error(`no such method: ${call.method}`);
   }
+}
+
+function pressOptions(options) {
+  return { maxPrice: options.max_price, idempotencyKey: options.idempotency_key };
 }

@@ -130,14 +130,13 @@ export class Abyss {
           const press = await this.#press(call, widget, input, options, false);
           return this.#run(expect(press, isRun, "The press answered without a run."));
         }),
-      get: (id, options = {}) => this.#call(options, async (call) => this.#run(await this.#getRun(call, id, options.wait ?? false))),
+      get: (id, options = {}) =>
+        this.#call(options, async (call) => this.#run(await this.#getRun(call, id, options.wait ?? false))),
       list: (options = {}) => this.#call(options, (call) => this.#listRuns(call, options)),
     };
     this.widgets = {
       get: (widget, options = {}) =>
-        this.#call(options, async (call) =>
-          expect(await this.#send(call, "GET", this.#widgetURL(widget)), isWidget, "The Widget answered without an id."),
-        ),
+        this.#call(options, (call) => this.#get(call, this.#widgetURL(widget), isWidget, "The Widget answered without an id.")),
     };
     this.uploads = {
       create: (widget, upload, options = {}) => this.#call(options, (call) => this.#grant(call, this.#widgetURL(widget), upload)),
@@ -168,9 +167,7 @@ export class Abyss {
 
   /** Answers the API Key making the call, with `GET /v1/key`. */
   key(options: CallOptions = {}): Promise<Key> {
-    return this.#call(options, async (call) =>
-      expect(await this.#send(call, "GET", `${this.baseURL}/v1/key`), isKey, "The key answered without a key."),
-    );
+    return this.#call(options, (call) => this.#get(call, `${this.baseURL}/v1/key`, isKey, "The key answered without a key."));
   }
 
   /**
@@ -222,12 +219,13 @@ export class Abyss {
 
   /** Asks for an upload with `POST /v1/widgets/{widget}/uploads`. */
   async #grant(call: Call, widgetURL: string, { field, filename, size }: UploadRequest): Promise<Upload> {
+    // JSON.stringify leaves `size` out when it is undefined.
     const grant = await this.#send(
       call,
       "POST",
       `${widgetURL}/uploads`,
       { "Content-Type": "application/json" },
-      JSON.stringify(size === undefined ? { field, filename } : { field, filename, size }),
+      JSON.stringify({ field, filename, size }),
     );
     return expect(grant, isUpload, "The upload answered without an id and a form.");
   }
@@ -263,8 +261,13 @@ export class Abyss {
     const url = new URL(`${this.baseURL}/v1/runs`);
     if (options.limit !== undefined) url.searchParams.set("limit", String(options.limit));
     if (options.startingAfter !== undefined) url.searchParams.set("starting_after", options.startingAfter);
-    const page = expect(await this.#send(call, "GET", url.href), isRunList, "The run list answered without data.");
+    const page = await this.#get(call, url.href, isRunList, "The run list answered without data.");
     return { data: page.data.map((data) => this.#run(data)), has_more: page.has_more };
+  }
+
+  /** Reads `url` once and answers its body, when it is what the route answers. */
+  async #get<T>(call: Call, url: string, is: (value: unknown) => value is T, message: string): Promise<T> {
+    return expect(await this.#send(call, "GET", url), is, message);
   }
 
   /** Reads `url` until `done`. Re-attaching has no limit and is not a retry. */

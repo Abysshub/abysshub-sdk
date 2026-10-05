@@ -30,6 +30,8 @@ interface Reply {
   requestId: string | null;
 }
 
+type EndedReply = Reply & { run: Run };
+
 export class Abyss {
   readonly baseURL: string;
   readonly maxRetries: number;
@@ -57,16 +59,11 @@ export class Abyss {
   async run(widget: string, input: Input, options: RunOptions = {}): Promise<Run> {
     const body: Record<string, unknown> = { input };
     if (options.maxPrice !== undefined) body.max_price = options.maxPrice;
-    let reply = await this.#send("POST", `${this.baseURL}/v1/widgets/${encodeURIComponent(widget)}/runs`, {
+    const press = await this.#send("POST", `${this.baseURL}/v1/widgets/${encodeURIComponent(widget)}/runs`, {
       "Content-Type": "application/json",
       "Idempotency-Key": options.idempotencyKey ?? crypto.randomUUID(),
     }, JSON.stringify(body));
-    let target: string | null = null;
-    while (!reply.run || !isFinal(reply.run)) {
-      if (target) await sleep(REATTACH_PAUSE_MS);
-      else target = this.#waitURL(reply);
-      reply = await this.#send("GET", target);
-    }
+    const reply = hasEnded(press) ? press : await this.#reattach(press);
     if (reply.run.status === "failed") {
       throw new AbyssError({
         code: reply.run.error?.code ?? "platform_fault",
@@ -76,6 +73,17 @@ export class Abyss {
       });
     }
     return reply.run;
+  }
+
+  /** Reads the run with `GET <Location>?wait=true` until it ends. Re-attaching has no limit and is not a retry. */
+  async #reattach(press: Reply): Promise<EndedReply> {
+    const url = this.#waitURL(press);
+    let reply = await this.#send("GET", url);
+    while (!hasEnded(reply)) {
+      await sleep(REATTACH_PAUSE_MS);
+      reply = await this.#send("GET", url);
+    }
+    return reply;
   }
 
   #waitURL(reply: Reply): string {
@@ -144,8 +152,9 @@ function isRun(value: unknown): value is Run {
   return isObject(value) && typeof value.id === "string" && typeof value.status === "string";
 }
 
-function isFinal(run: Run): boolean {
-  return run.status === "succeeded" || run.status === "failed";
+/** Whether the reply carries a run that has succeeded or failed. */
+function hasEnded(reply: Reply): reply is EndedReply {
+  return reply.run !== null && (reply.run.status === "succeeded" || reply.run.status === "failed");
 }
 
 function env(name: string): string | undefined {

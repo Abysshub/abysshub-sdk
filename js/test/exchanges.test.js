@@ -26,6 +26,13 @@ function validator(pointer, what) {
   return (value) => assert.ok(validate(value), `${what}: ${ajv.errorsText(validate.errors)}`);
 }
 
+// Query and header values arrive as text; a boolean or integer schema needs the typed value.
+function coerce(schema, text) {
+  if (schema.type === "boolean") return text === "true" ? true : text === "false" ? false : text;
+  if (schema.type === "integer") return Number(text);
+  return text;
+}
+
 function operation(method, path) {
   for (const [template, item] of Object.entries(contract.paths)) {
     const pattern = new RegExp(`^${template.replace(/\{[^}]+\}/g, "[^/]+")}$`);
@@ -45,9 +52,7 @@ for (const recording of await loadExchanges()) {
       for (const [name, value] of url.searchParams) {
         const param = params.find((p) => p.in === "query" && p.name === name);
         assert.ok(param, `${at}: ${template} takes no query ${name}`);
-        const coerced = param.schema.type === "boolean" ? value === "true" ? true : value === "false" ? false : value
-          : param.schema.type === "integer" ? Number(value) : value;
-        assert.ok(ajv.validate(param.schema, coerced), `${at}: query ${name}: ${ajv.errorsText()}`);
+        assert.ok(ajv.validate(param.schema, coerce(param.schema, value)), `${at}: query ${name}: ${ajv.errorsText()}`);
       }
       for (const [name, value] of Object.entries(request.headers ?? {})) {
         const param = params.find((p) => p.in === "header" && p.name.toLowerCase() === name.toLowerCase());
@@ -70,8 +75,7 @@ for (const recording of await loadExchanges()) {
           assert.ok(!schema.required, `${at}: the ${response.status} must send ${name}`);
           continue;
         }
-        const value = schema.schema.type === "boolean" ? sent[1] === "true" : schema.schema.type === "integer" ? Number(sent[1]) : fill(sent[1]);
-        assert.ok(ajv.validate(schema.schema, value), `${at}: header ${name}: ${ajv.errorsText()}`);
+        assert.ok(ajv.validate(schema.schema, coerce(schema.schema, fill(sent[1]))), `${at}: header ${name}: ${ajv.errorsText()}`);
       }
       if (response.cut) {
         assert.equal(response.body, undefined, `${at}: a cut has no body`);

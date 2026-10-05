@@ -1,0 +1,159 @@
+{
+  "description": "run.save(dir) writes every output file under dir at its path. The first URL has expired (403 from storage): the library reads the run again for fresh URLs, once, and tries again.",
+  "call": {
+    "widget": "widget_1660",
+    "input": {
+      "title": "Q3"
+    },
+    "save": "output"
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "title": "Q3"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+          "Request-Id": "req_O1u2T3p4U5t6S7a8V9e0Q1w2"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+          "widget": "widget_1660",
+          "status": "succeeded",
+          "price": 3.1,
+          "result": {
+            "bars": 12
+          },
+          "output_files": [
+            {
+              "path": "charts/a.png",
+              "size": 14,
+              "content_type": "image/png",
+              "url": "{base}/storage/abysshub-outputs/runs/9201/output/charts/a.png?X-Amz-Signature=expired"
+            },
+            {
+              "path": "output.json",
+              "size": 11,
+              "content_type": "application/json",
+              "url": "{base}/storage/abysshub-outputs/runs/9201/output/output.json?X-Amz-Signature=expired"
+            }
+          ],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "GET",
+        "path": "/storage/abysshub-outputs/runs/9201/output/charts/a.png?X-Amz-Signature=expired"
+      },
+      "response": {
+        "status": 403,
+        "headers": {
+          "Content-Type": "application/xml"
+        },
+        "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>Request has expired</Message></Error>"
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_R1e2R3e4A5d6F7r8E9s0H1w2"
+        },
+        "body": {
+          "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+          "widget": "widget_1660",
+          "status": "succeeded",
+          "price": 3.1,
+          "result": {
+            "bars": 12
+          },
+          "output_files": [
+            {
+              "path": "charts/a.png",
+              "size": 14,
+              "content_type": "image/png",
+              "url": "{base}/storage/abysshub-outputs/runs/9201/output/charts/a.png?X-Amz-Signature=fresh"
+            },
+            {
+              "path": "output.json",
+              "size": 11,
+              "content_type": "application/json",
+              "url": "{base}/storage/abysshub-outputs/runs/9201/output/output.json?X-Amz-Signature=fresh"
+            }
+          ],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "GET",
+        "path": "/storage/abysshub-outputs/runs/9201/output/charts/a.png?X-Amz-Signature=fresh"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "image/png"
+        },
+        "text": "PNG-fake-chart"
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "GET",
+        "path": "/storage/abysshub-outputs/runs/9201/output/output.json?X-Amz-Signature=fresh"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "text": "{\"bars\":12}"
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+      "status": "succeeded"
+    },
+    "saved": {
+      "charts/a.png": "PNG-fake-chart",
+      "output.json": "{\"bars\":12}"
+    }
+  }
+}

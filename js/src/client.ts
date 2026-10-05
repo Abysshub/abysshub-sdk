@@ -1,6 +1,8 @@
 import { AbyssError } from "./error.js";
+import { uploadFiles } from "./files.js";
 import { request } from "./http.js";
-import type { Input, Run } from "./types.js";
+import { Run } from "./run.js";
+import type { Input, RunData } from "./types.js";
 
 const API = "https://api.abysshub.com";
 const DEV_API = "https://api.dev.abysshub.com";
@@ -8,6 +10,9 @@ const DEV_KEY_PREFIX = "abyss_sk_dev_";
 
 /** The pause between two re-attaches that both ended without the run's ending. */
 const REATTACH_PAUSE_MS = 1_000;
+
+/** The pause before pressing again after a drop before any headers. */
+const RETRY_PAUSE_MS = 500;
 
 export interface AbyssOptions {
   /** Defaults to `ABYSS_API_KEY`. */
@@ -25,12 +30,13 @@ export interface RunOptions {
 }
 
 interface Reply {
-  run: Run | null;
+  body: unknown;
+  run: RunData | null;
   location: string | null;
   requestId: string | null;
 }
 
-type EndedReply = Reply & { run: Run };
+type EndedReply = Reply & { run: RunData };
 
 export class Abyss {
   readonly baseURL: string;
@@ -52,24 +58,86 @@ export class Abyss {
   }
 
   /**
-   * Presses a Widget and waits for the run's ending, re-attaching through `Location`
-   * whenever the hold ends early. Returns the succeeded run; raises `AbyssError` on a
-   * refusal or a failed run.
+   * Uploads the input's files, presses a Widget and waits for the run's ending,
+   * re-attaching through `Location` whenever the hold ends early. Returns the succeeded
+   * run; raises `AbyssError` on a refusal or a failed run.
    */
   async run(widget: string, input: Input, options: RunOptions = {}): Promise<Run> {
-    const body: Record<string, unknown> = { input };
+    const widgetURL = `${this.baseURL}/v1/widgets/${encodeURIComponent(widget)}`;
+    const body: Record<string, unknown> = {
+      input: await uploadFiles(input, (field, filename, data) => this.#upload(widgetURL, field, filename, data)),
+    };
     if (options.maxPrice !== undefined) body.max_price = options.maxPrice;
-    const press = await this.#send("POST", `${this.baseURL}/v1/widgets/${encodeURIComponent(widget)}/runs`, {
+    const press = await this.#press(`${widgetURL}/runs`, {
       "Content-Type": "application/json",
       "Idempotency-Key": options.idempotencyKey ?? crypto.randomUUID(),
     }, JSON.stringify(body));
     const reply = hasEnded(press) ? press : await this.#reattach(press);
-    if (reply.run.status === "failed") {
+    const run = new Run(reply.run, () => this.#read(reply.run.id));
+    if (run.status === "failed") {
       throw new AbyssError({
-        code: reply.run.error?.code ?? "platform_fault",
-        message: reply.run.error?.message ?? "The run failed.",
+        code: run.error?.code ?? "platform_fault",
+        message: run.error?.message ?? "The run failed.",
         request_id: reply.requestId,
-        run: reply.run,
+        run,
+      });
+    }
+    return run;
+  }
+
+  /**
+   * Sends the press. A drop before any headers presses again, at most `maxRetries`
+   * times, with the same body and `Idempotency-Key`, so the uploads are never redone.
+   */
+  async #press(url: string, headers: Record<string, string>, body: string): Promise<Reply> {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await this.#send("POST", url, headers, body);
+      } catch (error) {
+        if (error instanceof AbyssError || attempt >= this.maxRetries) throw error;
+        await sleep(RETRY_PAUSE_MS);
+      }
+    }
+  }
+
+  /** Asks for an upload with `POST /v1/widgets/{widget}/uploads`, sends the file to storage and answers its id. */
+  async #upload(widgetURL: string, field: string, filename: string, data: Blob): Promise<string> {
+    const grant = await this.#send("POST", `${widgetURL}/uploads`, { "Content-Type": "application/json" }, JSON.stringify({
+      field,
+      filename,
+      size: data.size,
+    }));
+    if (!isUpload(grant.body)) {
+      throw new AbyssError({
+        code: "unexpected_response",
+        message: "The upload answered without an id and a form.",
+        request_id: grant.requestId,
+      });
+    }
+    const form = new FormData();
+    for (const [name, value] of Object.entries(grant.body.upload.fields)) form.append(name, value);
+    form.append("file", data, filename);
+    const stored = await fetch(grant.body.upload.url, { method: "POST", body: form });
+    await stored.body?.cancel();
+    if (!stored.ok) {
+      throw new AbyssError({
+        code: "unexpected_response",
+        message: `Storage answered ${stored.status} to the upload of ${filename}.`,
+        status: stored.status,
+        param: field,
+      });
+    }
+    return grant.body.id;
+  }
+
+  /** Reads a run at once with `GET /v1/runs/{id}`. */
+  async #read(id: string): Promise<RunData> {
+    const reply = await this.#send("GET", `${this.baseURL}/v1/runs/${encodeURIComponent(id)}`);
+    if (!reply.run) {
+      throw new AbyssError({
+        code: "unexpected_response",
+        message: "The read answered without a run.",
+        request_id: reply.requestId,
       });
     }
     return reply.run;
@@ -109,7 +177,7 @@ export class Abyss {
     const requestId = answer.headers.get("request-id");
     const parsed = parse(answer.text);
     if (answer.status === 200 || answer.status === 202) {
-      return { run: isRun(parsed) ? parsed : null, location: answer.headers.get("location"), requestId };
+      return { body: parsed, run: isRun(parsed) ? parsed : null, location: answer.headers.get("location"), requestId };
     }
     throw refusal(answer.status, parsed, requestId);
   }
@@ -148,8 +216,18 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isRun(value: unknown): value is Run {
+function isRun(value: unknown): value is RunData {
   return isObject(value) && typeof value.id === "string" && typeof value.status === "string";
+}
+
+function isUpload(value: unknown): value is { id: string; upload: { url: string; fields: Record<string, string> } } {
+  return (
+    isObject(value) &&
+    typeof value.id === "string" &&
+    isObject(value.upload) &&
+    typeof value.upload.url === "string" &&
+    isObject(value.upload.fields)
+  );
 }
 
 /** Whether the reply carries a run that has succeeded or failed. */

@@ -1,28 +1,28 @@
 /** A run's place: `succeeded` and `failed` are final. */
 export type RunStatus = "queued" | "running" | "succeeded" | "failed";
 
-/** One file a run wrote. Its `url` is signed fresh on every read, and expires. */
-export interface RunFile {
-  path: string;
-  size: number;
-  content_type: string;
-  url: string;
-}
-
 /** Why a run failed: `widget_fault`, `platform_fault` or `budget_exceeded`. */
 export interface RunError {
   code: string;
   message: string;
 }
 
-/** A run, with `/v1`'s names. */
-export interface Run {
+/** One file a run wrote, as `/v1` sends it. */
+export interface RunFileData {
+  path: string;
+  size: number;
+  content_type: string;
+  url: string;
+}
+
+/** A run, as `/v1` sends it. */
+export interface RunData {
   id: string;
   widget: string;
   status: RunStatus;
   price: number;
   result: unknown;
-  output_files: RunFile[];
+  output_files: RunFileData[];
   error: RunError | null;
   created_at: string;
   started_at: string | null;

@@ -1,0 +1,55 @@
+{
+  "description": "The upload is refused (held_input_type_refused): it raises with the error's code and param before any press.",
+  "call": {
+    "widget": "widget_1660",
+    "input": {
+      "report": {
+        "$file": "report.exe"
+      }
+    },
+    "files": {
+      "report.exe": "MZ not a report"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1660/uploads",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "field": "report",
+          "filename": "report.exe",
+          "size": 15
+        }
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "Request-Id": "req_R1e2F3u4S5e6D7u8P9l0O1a2"
+        },
+        "body": {
+          "error": {
+            "code": "held_input_type_refused",
+            "message": "The Field report takes .pdf files, not report.exe.",
+            "param": "report",
+            "doc_url": "https://abysshub.com/documentation/api#held_input_type_refused"
+          },
+          "request_id": "req_R1e2F3u4S5e6D7u8P9l0O1a2"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "code": "held_input_type_refused",
+      "message": "The Field report takes .pdf files, not report.exe.",
+      "param": "report",
+      "doc_url": "https://abysshub.com/documentation/api#held_input_type_refused",
+      "request_id": "req_R1e2F3u4S5e6D7u8P9l0O1a2",
+      "run": null
+    }
+  }
+}

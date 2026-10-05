@@ -8,7 +8,7 @@ from fake_server import Replay, load_exchanges
 from abysshub import Abyss, AbyssError
 
 KEY = "abyss_sk_fake_for_tests"
-RECORDING = next(r for r in load_exchanges("timeout-*.json") if r["name"] == "timeout-reattach.json")
+RECORDING = load_exchanges("timeout-reattach.json")[0]
 WIDGET = RECORDING["call"]["widget"]
 INPUT = RECORDING["call"]["input"]
 ID = RECORDING["outcome"]["error"]["run"]["id"]

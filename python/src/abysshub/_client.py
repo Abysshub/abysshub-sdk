@@ -421,7 +421,7 @@ def _retry_pause(answer: Answer, attempt: int) -> float | None:
         try:
             seconds = float(answer.headers.get("retry-after", ""))
         except ValueError:
-            seconds = math.nan
+            return _backoff(attempt)
         return seconds if math.isfinite(seconds) and seconds >= 0 else _backoff(attempt)
     return _backoff(attempt) if answer.status >= 500 else None
 

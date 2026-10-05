@@ -46,7 +46,7 @@ def test_max_retries_defaults_to_2() -> None:
 
 
 def test_every_request_sends_the_user_agent() -> None:
-    recording = next(r for r in load_exchanges("key.json"))
+    recording = load_exchanges("key.json")[0]
     recording["exchanges"][0]["request"]["headers"]["User-Agent"] = (
         f"abysshub-python/{metadata.version('abysshub')} (python {platform.python_version()})"
     )

@@ -1,0 +1,96 @@
+# The nightly live run, so drift between the libraries and dev shows up as a red build, not
+# as a caller's bug (sdk #8). Each library, installed the way a caller installs it, presses
+# the probe Widget on dev's /v1 and then runs that Widget's code exactly as its page shows it
+# (live/live.mjs, live/live.py). The contract is checked against what dev serves.
+#
+# It costs dev Byssium only. The ABYSS_DEV_API_KEY secret is a dev key on a test account,
+# with a Spend Cap of 25 Ƀ a month. The probe is free, and the Call Price is 0.1 Ƀ after the
+# first 100 calls a month. ABYSS_BASE_URL is fixed to dev, so nothing here can reach prod.
+#
+# The probe is the Actions variable ABYSS_PROBE_WIDGET (widget_<id>). It is live/widget,
+# published on dev, public and free, from a Test Run that sent a text and a .txt file, so
+# its page's code takes a file and saves the outputs. If dev ever loses it, publish
+# live/widget again the same way and set the variable.
+#
+# A 403 with no {"error": …} body is dev's WAF, not the libraries.
+name: live
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live
+  cancel-in-progress: false
+
+env:
+  ABYSS_BASE_URL: https://api.dev.abysshub.com
+
+jobs:
+  contract:
+    name: contract matches dev
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: contract/openapi.json is what dev serves at /v1/openapi.json
+        run: |
+          curl --fail --silent --show-error --max-time 30 "$ABYSS_BASE_URL/v1/openapi.json" --output "$RUNNER_TEMP/served.json"
+          if ! diff --unified --label contract/openapi.json --label "dev's /v1/openapi.json" \
+              <(jq --sort-keys . contract/openapi.json) <(jq --sort-keys . "$RUNNER_TEMP/served.json"); then
+            echo "::error::contract/openapi.json differs from what dev serves at /v1/openapi.json (the diff is above). Refresh it with make sdk-contract in the abyss workspace, and commit it here."
+            exit 1
+          fi
+
+  js:
+    name: js (Node 20)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+      # The library as a caller gets it: packed, then installed in a folder of its own.
+      - name: Install the packed library
+        run: |
+          mkdir "$RUNNER_TEMP/caller"
+          (cd js && npm ci && npm pack --pack-destination "$RUNNER_TEMP/caller")
+          cp live/live.mjs "$RUNNER_TEMP/caller/"
+          cd "$RUNNER_TEMP/caller"
+          echo '{"name": "caller", "private": true, "type": "module"}' > package.json
+          npm install --no-audit --no-fund ./abysshub-*.tgz
+      - name: The live run
+        working-directory: ${{ runner.temp }}/caller
+        env:
+          ABYSS_API_KEY: ${{ secrets.ABYSS_DEV_API_KEY }}
+          ABYSS_PROBE_WIDGET: ${{ vars.ABYSS_PROBE_WIDGET }}
+        run: node live.mjs
+
+  python:
+    name: python (3.10)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      # The library as a caller gets it: built and installed, not editable.
+      - name: Install the library
+        run: pip install ./python
+      - name: The live run
+        env:
+          ABYSS_API_KEY: ${{ secrets.ABYSS_DEV_API_KEY }}
+          ABYSS_PROBE_WIDGET: ${{ vars.ABYSS_PROBE_WIDGET }}
+        run: python live/live.py

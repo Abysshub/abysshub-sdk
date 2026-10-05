@@ -1,0 +1,63 @@
+{
+  "description": "The press holds: 200 and its headers at once, spaces while the run works, then the succeeded run.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+          "Request-Id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+        },
+        "chunks": [
+          " ",
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+          "widget": "widget_131",
+          "status": "succeeded",
+          "price": 0.5,
+          "result": {
+            "approved": true,
+            "rate": 0.042
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+      "status": "succeeded",
+      "result": {
+        "approved": true,
+        "rate": 0.042
+      }
+    }
+  }
+}

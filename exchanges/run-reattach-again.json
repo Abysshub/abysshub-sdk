@@ -1,0 +1,112 @@
+{
+  "description": "Re-attaching has no limit: the holds are full for the press and for the first read, which answers the run at once still queued; the second read holds until the run ends.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 202,
+        "headers": {
+          "Location": "{base}/v1/runs/run_6Yh7Uj8Ik9Ol0Pz1Xs2Cd3Fv",
+          "Request-Id": "req_C1v2B3n4M5q6W7e8R9t0Y1u2"
+        },
+        "body": {
+          "id": "run_6Yh7Uj8Ik9Ol0Pz1Xs2Cd3Fv",
+          "widget": "widget_131",
+          "status": "queued",
+          "price": 0.5,
+          "result": null,
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": null,
+          "ended_at": null
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_6Yh7Uj8Ik9Ol0Pz1Xs2Cd3Fv?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_D1f2G3h4J5k6L7z8X9c0V1b2"
+        },
+        "body": {
+          "id": "run_6Yh7Uj8Ik9Ol0Pz1Xs2Cd3Fv",
+          "widget": "widget_131",
+          "status": "queued",
+          "price": 0.5,
+          "result": null,
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": null,
+          "ended_at": null
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_6Yh7Uj8Ik9Ol0Pz1Xs2Cd3Fv?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_E1r2T3y4U5i6O7p8A9s0D1f2"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_6Yh7Uj8Ik9Ol0Pz1Xs2Cd3Fv",
+          "widget": "widget_131",
+          "status": "succeeded",
+          "price": 0.5,
+          "result": {
+            "approved": true,
+            "rate": 0.042
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_6Yh7Uj8Ik9Ol0Pz1Xs2Cd3Fv",
+      "status": "succeeded"
+    }
+  }
+}

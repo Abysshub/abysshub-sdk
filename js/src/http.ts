@@ -16,19 +16,29 @@ export interface Answer {
 
 /**
  * Sends one request and reads its whole body. A failure before the headers rejects;
- * a cut after them answers `text: null`, so the caller can re-attach.
+ * a cut after them answers `text: null`, so the caller can re-attach. `init.signal`
+ * stops the request at any point, and then it always rejects.
  */
 export async function request(url: string, init: RequestInit, limits: Limits = LIMITS): Promise<Answer> {
+  const stop = init.signal;
+  stop?.throwIfAborted();
   const controller = new AbortController();
-  const connect = setTimeout(() => controller.abort(), limits.connectMs);
-  let response: Response;
+  const abort = () => controller.abort();
+  stop?.addEventListener("abort", abort, { once: true });
+  const connect = setTimeout(abort, limits.connectMs);
   try {
-    response = await fetch(url, { ...init, signal: controller.signal });
+    let response: Response;
+    try {
+      response = await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(connect);
+    }
+    const text = await readBody(response, controller, limits.silenceMs);
+    stop?.throwIfAborted();
+    return { status: response.status, headers: response.headers, text };
   } finally {
-    clearTimeout(connect);
+    stop?.removeEventListener("abort", abort);
   }
-  const text = await readBody(response, controller, limits.silenceMs);
-  return { status: response.status, headers: response.headers, text };
 }
 
 async function readBody(response: Response, controller: AbortController, silenceMs: number): Promise<string | null> {

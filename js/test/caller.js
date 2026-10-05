@@ -25,3 +25,31 @@ export async function withFiles(files, work) {
     await rm(dir, { recursive: true, force: true });
   }
 }
+
+/** The recorded call, made through the method it names, with its options in JS's spelling. */
+export function perform(abyss, call, input) {
+  const { timeout, ...options } = call.options ?? {};
+  const waiting = { timeout };
+  switch (call.method ?? "run") {
+    case "run":
+      return abyss.run(call.widget, input, { ...pressOptions(options), ...waiting });
+    case "runs.create":
+      return abyss.runs.create(call.widget, input, { ...pressOptions(options), ...waiting });
+    case "runs.get":
+      return abyss.runs.get(call.id, { wait: options.wait, ...waiting });
+    case "runs.list":
+      return abyss.runs.list({ limit: options.limit, startingAfter: options.starting_after, ...waiting });
+    case "widgets.get":
+      return abyss.widgets.get(call.widget, waiting);
+    case "uploads.create":
+      return abyss.uploads.create(call.widget, options, waiting);
+    case "key":
+      return abyss.key(waiting);
+    default:
+      throw new Error(`no such method: ${call.method}`);
+  }
+}
+
+function pressOptions(options) {
+  return { maxPrice: options.max_price, idempotencyKey: options.idempotency_key };
+}

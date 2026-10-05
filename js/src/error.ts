@@ -8,6 +8,8 @@ export interface AbyssErrorFields {
   doc_url?: string | null;
   request_id?: string | null;
   run?: Run | null;
+  /** What a `connection_error` was caused by. */
+  cause?: unknown;
 }
 
 /**
@@ -24,7 +26,7 @@ export class AbyssError extends Error {
   readonly run: Run | null;
 
   constructor(fields: AbyssErrorFields) {
-    super(fields.message);
+    super(fields.message, fields.cause === undefined ? undefined : { cause: fields.cause });
     this.name = "AbyssError";
     this.code = fields.code;
     this.status = fields.status ?? null;

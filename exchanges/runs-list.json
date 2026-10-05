@@ -1,0 +1,74 @@
+{
+  "description": "runs.list() sends limit and starting_after and answers {data, has_more}, each run in data a run.",
+  "call": {
+    "method": "runs.list",
+    "options": {
+      "limit": 2,
+      "starting_after": "run_9Zz8Yy7Xx6Ww5Vv4Uu3Tt2Ss"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs?limit=2&starting_after=run_9Zz8Yy7Xx6Ww5Vv4Uu3Tt2Ss",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_L1i2S3t4R5u6N7s8P9a0G1e2"
+        },
+        "body": {
+          "data": [
+            {
+              "id": "run_1Aa2Bb3Cc4Dd5Ee6Ff7Gg8Hh",
+              "widget": "widget_131",
+              "status": "succeeded",
+              "price": 0.5,
+              "result": {
+                "approved": true,
+                "rate": 0.042
+              },
+              "output_files": [],
+              "error": null,
+              "created_at": "2026-10-05T09:15:02Z",
+              "started_at": "2026-10-05T09:15:04Z",
+              "ended_at": "2026-10-05T09:15:31Z"
+            },
+            {
+              "id": "run_3Ii4Jj5Kk6Ll7Mm8Nn9Oo1Pp",
+              "widget": "widget_131",
+              "status": "running",
+              "price": 0.5,
+              "result": null,
+              "output_files": [],
+              "error": null,
+              "created_at": "2026-10-05T09:15:02Z",
+              "started_at": "2026-10-05T09:15:04Z",
+              "ended_at": null
+            }
+          ],
+          "has_more": true
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "value": {
+      "has_more": true,
+      "data": [
+        {
+          "id": "run_1Aa2Bb3Cc4Dd5Ee6Ff7Gg8Hh",
+          "status": "succeeded"
+        },
+        {
+          "id": "run_3Ii4Jj5Kk6Ll7Mm8Nn9Oo1Pp",
+          "status": "running"
+        }
+      ]
+    }
+  }
+}

@@ -27,7 +27,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "node scripts/version.js && tsc",
     "prepack": "npm run build",
     "test": "npm run build && node --test test/*.test.js"
   },

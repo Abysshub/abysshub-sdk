@@ -1,0 +1,72 @@
+{
+  "description": "The press drops before any headers three times: after 2 retries the library raises connection_error, a library-only code, with no request_id.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "drop": true
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "drop": true
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "drop": true
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "code": "connection_error",
+      "request_id": null,
+      "run": null
+    }
+  }
+}

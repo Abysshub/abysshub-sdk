@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { afterEach, beforeEach, test } from "node:test";
 import { Abyss, AbyssError } from "../dist/index.js";
 
@@ -43,4 +45,35 @@ test("no key raises AbyssError", () => {
 test("maxRetries defaults to 2", () => {
   assert.equal(new Abyss({ apiKey: "abyss_sk_x" }).maxRetries, 2);
   assert.equal(new Abyss({ apiKey: "abyss_sk_x", maxRetries: 0 }).maxRetries, 0);
+});
+
+test("in a browser, new Abyss() throws", () => {
+  globalThis.window = globalThis;
+  globalThis.document = {};
+  try {
+    assert.throws(
+      () => new Abyss({ apiKey: "abyss_sk_x" }),
+      { message: "An Abyss API key is a server-side secret. Call the API from your server." },
+    );
+  } finally {
+    delete globalThis.window;
+    delete globalThis.document;
+  }
+});
+
+test("every request sends the User-Agent", async () => {
+  const agents = [];
+  const server = createServer((req, res) => {
+    agents.push(req.headers["user-agent"]);
+    res.writeHead(200, { "Content-Type": "application/json" }).end('{"key":"abyss_sk_…3f9a"}');
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  try {
+    await new Abyss({ apiKey: "abyss_sk_x", baseURL: `http://127.0.0.1:${server.address().port}` }).key();
+    const { version } = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+    assert.deepEqual(agents, [`abysshub-js/${version} (node ${process.versions.node})`]);
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
 });

@@ -1,0 +1,77 @@
+{
+  "description": "widgets.get() reads the Widget: its price, Free Runs and input_schema, with /v1's names.",
+  "call": {
+    "method": "widgets.get",
+    "widget": "widget_131"
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/widgets/widget_131",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_W1i2D3g4E5t6G7e8T9a0B1c2"
+        },
+        "body": {
+          "id": "widget_131",
+          "name": "Loan rate",
+          "description": "Prices a loan.",
+          "url": "https://abysshub.com/widgets/131",
+          "price": 0.5,
+          "free_runs": {
+            "limit": 3,
+            "remaining": 2
+          },
+          "input_schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000,
+                "description": "The loan amount, in euros."
+              }
+            },
+            "required": [
+              "amount"
+            ],
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "value": {
+      "id": "widget_131",
+      "price": 0.5,
+      "free_runs": {
+        "limit": 3,
+        "remaining": 2
+      },
+      "input_schema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000,
+            "description": "The loan amount, in euros."
+          }
+        },
+        "required": [
+          "amount"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+}

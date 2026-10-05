@@ -1,0 +1,49 @@
+{
+  "description": "runs.get() reads the run at once and answers it as it is: a failed run is answered, not raised.",
+  "call": {
+    "method": "runs.get",
+    "id": "run_8Qw7Er6Ty5Ui4Op3As2Df1Gh"
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_8Qw7Er6Ty5Ui4Op3As2Df1Gh",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_G1e2T3r4U5n6N7o8W9a0I1t2"
+        },
+        "body": {
+          "id": "run_8Qw7Er6Ty5Ui4Op3As2Df1Gh",
+          "widget": "widget_131",
+          "status": "failed",
+          "price": 0,
+          "result": null,
+          "output_files": [],
+          "error": {
+            "code": "widget_fault",
+            "message": "The Widget stopped with an error: rate table missing."
+          },
+          "created_at": "2026-10-05T09:15:02Z",
+          "started_at": "2026-10-05T09:15:04Z",
+          "ended_at": "2026-10-05T09:15:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_8Qw7Er6Ty5Ui4Op3As2Df1Gh",
+      "status": "failed",
+      "error": {
+        "code": "widget_fault",
+        "message": "The Widget stopped with an error: rate table missing."
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "description": "key() reads the API Key making the call: its display form, its person and its Spend Cap, never its secret.",
+  "call": {
+    "method": "key"
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/key",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_K1e2Y3r4E5a6D7k8E9y0A1b2"
+        },
+        "body": {
+          "name": "billing server",
+          "key": "abyss_sk_…3f9a",
+          "user": {
+            "id": 412,
+            "name": "ada"
+          },
+          "spend_cap": 25,
+          "spent_this_month": 3.5,
+          "created_at": "2026-10-01T08:00:00Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "value": {
+      "name": "billing server",
+      "key": "abyss_sk_…3f9a",
+      "user": {
+        "id": 412,
+        "name": "ada"
+      },
+      "spend_cap": 25,
+      "spent_this_month": 3.5
+    }
+  }
+}

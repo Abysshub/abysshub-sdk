@@ -114,6 +114,8 @@ export async function replay(recording, { key }) {
     if (response.cut) {
       await pause();
       res.socket.destroy();
+    } else if (response.hold) {
+      return;
     } else if (response.body !== undefined) {
       res.end(JSON.stringify(fillEvery(response.body, fill)));
     } else {

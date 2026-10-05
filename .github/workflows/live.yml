@@ -19,6 +19,8 @@ on:
   schedule:
     - cron: "17 4 * * *"
   workflow_dispatch:
+  push: # TEMP, dropped before merge: prove the run from this branch (sdk #8)
+    branches: [live-run-8]
 
 permissions:
   contents: read

@@ -198,16 +198,11 @@ class Abyss:
     def _send(self, method: str, url: str, headers: dict[str, str] | None = None, content: bytes | None = None) -> _Reply:
         """Sends one request to `/v1`. A drop before any headers is sent again, at most
         ``max_retries`` times; every refusal raises at once."""
+        sent_headers = {"Authorization": f"Bearer {self._api_key}", "Accept": "application/json", **(headers or {})}
         attempt = 0
         while True:
             try:
-                answer = request(
-                    self._http,
-                    method,
-                    url,
-                    {"Authorization": f"Bearer {self._api_key}", "Accept": "application/json", **(headers or {})},
-                    content,
-                )
+                answer = request(self._http, method, url, sent_headers, content)
                 break
             except httpx.TransportError as error:
                 if attempt >= self.max_retries:
@@ -263,14 +258,10 @@ def _is_run(value: Any) -> bool:
 
 
 def _is_upload(value: Any) -> bool:
-    upload = value.get("upload") if isinstance(value, dict) else None
-    return (
-        isinstance(value, dict)
-        and isinstance(value.get("id"), str)
-        and isinstance(upload, dict)
-        and isinstance(upload.get("url"), str)
-        and isinstance(upload.get("fields"), dict)
-    )
+    if not isinstance(value, dict) or not isinstance(value.get("id"), str):
+        return False
+    upload = value.get("upload")
+    return isinstance(upload, dict) and isinstance(upload.get("url"), str) and isinstance(upload.get("fields"), dict)
 
 
 def _has_ended(reply: _Reply) -> bool:

@@ -123,13 +123,8 @@ class Replay:
             if not candidates:
                 self.problems.append(f"unexpected {req.command} {req.path}")
                 return None
-            index = candidates[0]
+            index = next((other for other in candidates if not self._differences(other, req, sent)), candidates[0])
             found = self._differences(index, req, sent)
-            for other in candidates[1:]:
-                if not found:
-                    break
-                if not self._differences(other, req, sent):
-                    index, found = other, []
             self.served.add(index)
             self.problems.extend(f"#{index + 1}: {problem}" for problem in found)
             for name, value in (self.recording["exchanges"][index]["request"].get("headers") or {}).items():

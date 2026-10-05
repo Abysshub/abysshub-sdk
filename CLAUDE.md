@@ -54,6 +54,7 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 - **Errors:** a refusal or a failed run raises one `AbyssError` carrying `code`, `message`, `param`, `doc_url` and `request_id`, plus `run` for a failed run. There is no class per status.
 - **Timeouts:** none by default. An opt-in `timeout` (and `signal` in JS) stops the waiting, never the run, and raises `AbyssError` with the library-only code `timeout` and `.run`.
 - **Files:** `file(path)` is the form the docs show; native files and bytes are accepted too, and a string passes through as an `https` URL or an upload id. The library uploads once and retries only the press. `run.save(dir)` saves every output file, and each file has `save()` and `read()`; an expired URL is refreshed once by re-reading the run.
+- **The import shape:** the api's per-Widget code fixes it: `import Abyss, { file } from "abysshub"` in JS (`Abyss` is the default export, and the named `Abyss` is the same class) and `from abysshub import Abyss, file` in Python. Neither may break.
 - **The naming rule:** returned data keeps `/v1`'s names in both languages. The library's own options follow each language (JS `maxPrice`, Python `max_price`). A Field's name is never converted.
 
 ## House rules

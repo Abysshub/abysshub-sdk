@@ -5,7 +5,7 @@ The official JavaScript library for the [Abyss](https://abysshub.com) API.
 Pre-release: the Abyss API opens soon.
 
 ```js
-import { Abyss, AbyssError } from "abysshub";
+import Abyss, { AbyssError } from "abysshub";
 
 const abyss = new Abyss(); // reads ABYSS_API_KEY
 
@@ -17,6 +17,8 @@ try {
   else throw error;
 }
 ```
+
+`Abyss` is the package's default export, the form each Widget's page shows. The named form, `import { Abyss } from "abysshub"`, works too and is the same class.
 
 `run()` presses the Widget and waits for the run to end, however long it takes, then returns the succeeded run. A refusal or a failed run raises `AbyssError`.
 
@@ -80,7 +82,7 @@ while (page.has_more) page = await abyss.runs.list({ limit: 100, startingAfter: 
 ## Files
 
 ```js
-import { Abyss, file } from "abysshub";
+import Abyss, { file } from "abysshub";
 
 const run = await abyss.run("widget_1660", {
   report: file("report.pdf"),

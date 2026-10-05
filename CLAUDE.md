@@ -61,7 +61,8 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 - **JS has no dependencies.** Not one runtime `dependency` in `js/package.json`; dev tools only. It runs on Node 20+, Bun and Deno, and in a browser `new Abyss()` throws.
 - **Python has one dependency, `httpx`.** Python 3.10+, one sync client `Abyss` (`AsyncAbyss` is its own Slice). `python/pyproject.toml` declares a `dev` extra with the test tools.
 - **Oldest supported versions first.** Code must run on Node 20 and Python 3.10. CI also runs newer versions, Bun and Deno.
-- **The tests:** `npm test` in `js/` and `pytest` in `python/`. A Slice that starts a language creates its test command under that name. A change to `exchanges/` keeps both languages green.
+- **The tests:** `npm test` in `js/` and `pytest` in `python/`. `.github/workflows/ci.yml` runs both on every pull request, on the oldest and the newest versions. A change to `exchanges/` keeps both languages green.
+- **The packages started as placeholders that hold the published names.** Each one has a test of its dependency rule. Build on `js/package.json` and `python/pyproject.toml`: keep their `name`, their `version` of `0.0.0`, and `repository` (trusted publishing checks it).
 - **This repo is public.** Its issues, pull requests and commits are visible to anyone. Never write a key, a secret, or another repo's code into them.
 
 ## The contract file
@@ -70,10 +71,12 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 
 ## Releases
 
-- **Every merge to `main` publishes a pre-release:** npm `abysshub@next` (`0.0.x-dev.N`) and PyPI `.devN`. The publish job runs only after the tests pass on the merge commit, and it always computes the pre-release version itself. This is the dev track: dev walks install the library the way a caller would.
-- **A stable version (`latest` on npm, a final version on PyPI) publishes only from a published GitHub Release,** in the `release` environment, which needs a maintainer's approval.
-- **Publishing uses trusted publishing only.** No token is stored anywhere.
-- **Agents never publish.** They never run `npm publish` or `twine`, never create a release or a tag, never run `gh workflow run`, and never change a package's name. They touch `.github/workflows/` only when their issue asks for it, and never the stable release job.
+- **`.github/workflows/release.yml` is the only workflow that publishes.** It runs `ci.yml` on the commit first and publishes only when the tests pass.
+- **Every merge to `main` publishes a pre-release:** npm `abysshub@next` and a PyPI `.devN`, in the `next` environment, which deploys from `main` only. This is the dev track: dev walks install the library the way a caller would.
+- **A stable version publishes only from a published GitHub Release tagged `vX.Y.Z`:** npm `latest` and a final PyPI version, in the `release` environment, which waits for a maintainer's approval.
+- **The workflow computes every version.** A stable version is its tag. A pre-release is the patch after the newest `vX.Y.Z` tag on `main`, plus the number of commits since that tag: `0.1.1-dev.4` on npm, `0.1.1.dev4` on PyPI. The `0.0.0` in the package files is never bumped.
+- **Publishing uses trusted publishing only.** Each registry trusts `release.yml` in the `next` and `release` environments, and nothing else. No token is stored anywhere.
+- **Agents never publish.** They never run `npm publish` or `twine`, never create a release or a tag, never run `gh workflow run`, never change a package's name or version, and never edit `release.yml`. They change `ci.yml` only when their issue asks for it.
 
 ## Docs
 

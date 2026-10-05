@@ -102,11 +102,12 @@ export class Abyss {
 
   /** Asks for an upload with `POST /v1/widgets/{widget}/uploads`, sends the file to storage and answers its id. */
   async #upload(widgetURL: string, field: string, filename: string, data: Blob): Promise<string> {
-    const grant = await this.#send("POST", `${widgetURL}/uploads`, { "Content-Type": "application/json" }, JSON.stringify({
-      field,
-      filename,
-      size: data.size,
-    }));
+    const grant = await this.#send(
+      "POST",
+      `${widgetURL}/uploads`,
+      { "Content-Type": "application/json" },
+      JSON.stringify({ field, filename, size: data.size }),
+    );
     if (!isUpload(grant.body)) {
       throw new AbyssError({
         code: "unexpected_response",

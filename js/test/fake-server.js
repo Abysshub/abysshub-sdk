@@ -15,20 +15,22 @@ export async function loadExchanges() {
   );
 }
 
+/** The value with `fill` applied to every string in it, however deep. */
+export function fillEvery(value, fill) {
+  if (typeof value === "string") return fill(value);
+  if (Array.isArray(value)) return value.map((item) => fillEvery(item, fill));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([name, item]) => [name, fillEvery(item, fill)]));
+  }
+  return value;
+}
+
 export async function replay(recording, { key }) {
   const problems = [];
   const served = new Set();
   let uuid = null;
   let base = "";
   const fill = (value) => value.replaceAll("{base}", base).replaceAll("{key}", key);
-  const fillAll = (value) =>
-    typeof value === "string"
-      ? fill(value)
-      : Array.isArray(value)
-        ? value.map(fillAll)
-        : value && typeof value === "object"
-          ? Object.fromEntries(Object.entries(value).map(([name, item]) => [name, fillAll(item)]))
-          : value;
 
   // The exchanges the next request may answer: the first one not yet served, or every
   // unserved one in its block when it is marked `parallel`.
@@ -113,7 +115,7 @@ export async function replay(recording, { key }) {
       await pause();
       res.socket.destroy();
     } else if (response.body !== undefined) {
-      res.end(JSON.stringify(fillAll(response.body)));
+      res.end(JSON.stringify(fillEvery(response.body, fill)));
     } else {
       res.end(response.text ?? "");
     }

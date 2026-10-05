@@ -34,26 +34,26 @@ export type Uploader = (field: string, filename: string, data: Blob) => Promise<
  * id, and a list may mix all kinds. The caller's input is never changed.
  */
 export async function uploadFiles(input: Input, upload: Uploader): Promise<Input> {
-  const out: Input = { ...input };
+  const uploaded: Input = { ...input };
   const uploads: Promise<void>[] = [];
-  const send = async (field: string, value: InputFile | FileData) => {
+  const uploadOne = async (field: string, value: InputFile | FileData) => {
     const { filename, data } = await load(value, field);
     return upload(field, filename, data);
   };
   for (const [field, value] of Object.entries(input)) {
     if (isFile(value)) {
-      uploads.push(send(field, value).then((id) => void (out[field] = id)));
+      uploads.push(uploadOne(field, value).then((id) => void (uploaded[field] = id)));
     } else if (Array.isArray(value) && value.some(isFile)) {
       const list: unknown[] = [...value];
-      out[field] = list;
+      uploaded[field] = list;
       list.forEach((item, index) => {
-        if (isFile(item)) uploads.push(send(field, item).then((id) => void (list[index] = id)));
+        if (isFile(item)) uploads.push(uploadOne(field, item).then((id) => void (list[index] = id)));
       });
     }
   }
   const failed = (await Promise.allSettled(uploads)).find((settled) => settled.status === "rejected");
   if (failed) throw failed.reason;
-  return out;
+  return uploaded;
 }
 
 function isFile(value: unknown): value is InputFile | FileData {

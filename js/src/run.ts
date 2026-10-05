@@ -17,6 +17,7 @@ export class Run {
   created_at: string;
   started_at: string | null;
   ended_at: string | null;
+  readonly #reread: Reread;
 
   constructor(data: RunData, reread: Reread) {
     this.id = data.id;
@@ -28,14 +29,17 @@ export class Run {
     this.created_at = data.created_at;
     this.started_at = data.started_at;
     this.ended_at = data.ended_at;
-    const refresh = async () => {
-      const fresh = await reread();
-      for (const output of this.output_files) {
-        const url = fresh.output_files.find((candidate) => candidate.path === output.path)?.url;
-        if (url) output.url = url;
-      }
-    };
-    this.output_files = data.output_files.map((output) => new RunFile(output, refresh));
+    this.#reread = reread;
+    this.output_files = data.output_files.map((output) => new RunFile(output, () => this.#refreshURLs()));
+  }
+
+  /** Reads the run again and gives every output file its freshly signed `url`. */
+  async #refreshURLs(): Promise<void> {
+    const fresh = await this.#reread();
+    for (const output of this.output_files) {
+      const url = fresh.output_files.find((candidate) => candidate.path === output.path)?.url;
+      if (url) output.url = url;
+    }
   }
 
   /** Saves every output file under `dir`, at its `path`, and answers the paths it wrote. */

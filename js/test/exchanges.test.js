@@ -6,7 +6,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
-import { loadExchanges } from "./fake-server.js";
+import { fillEvery, loadExchanges } from "./fake-server.js";
 
 const contract = JSON.parse(await readFile(new URL("../../contract/openapi.json", import.meta.url), "utf8"));
 const ajv = new Ajv2020({ strict: false, allErrors: true });
@@ -16,14 +16,6 @@ ajv.addSchema(contract, "openapi.json");
 const BASE = contract.servers[0].url;
 const UUID = "5f0c3b9e-1d7a-4c2e-9a61-0b8f2d4e7c13";
 const fill = (value) => value.replaceAll("{base}", BASE).replaceAll("{key}", "abyss_sk_x").replaceAll("{uuid}", UUID);
-const fillAll = (value) =>
-  typeof value === "string"
-    ? fill(value)
-    : Array.isArray(value)
-      ? value.map(fillAll)
-      : value && typeof value === "object"
-        ? Object.fromEntries(Object.entries(value).map(([name, item]) => [name, fillAll(item)]))
-        : value;
 
 function resolve(node) {
   while (node?.$ref) node = node.$ref.slice(2).split("/").reduce((at, key) => at[key], contract);
@@ -93,7 +85,7 @@ for (const recording of await loadExchanges()) {
       } else {
         const ref = declared.content?.["application/json"]?.schema?.$ref;
         assert.ok(ref, `${at}: the ${response.status} has no JSON body in the contract`);
-        validator(ref.slice(1), `${at}: response body`)(fillAll(response.body));
+        validator(ref.slice(1), `${at}: response body`)(fillEvery(response.body, fill));
       }
       for (const chunk of response.chunks ?? []) assert.match(chunk, /^ +$/, `${at}: a hold's chunks are spaces`);
     });

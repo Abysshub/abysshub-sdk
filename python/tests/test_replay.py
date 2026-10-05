@@ -5,12 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from caller import caller_input, perform, with_files
 from fake_server import Replay, load_exchanges
 
 from abysshub import Abyss, AbyssError, Run
 
 KEY = "abyss_sk_fake_for_tests"
-RECORDINGS = load_exchanges("run-*.json")
+RECORDINGS = load_exchanges("run-*.json") + load_exchanges("files-*.json")
 
 
 def assert_fields(actual: Any, expected: Any, where: str) -> None:
@@ -30,41 +31,39 @@ def assert_fields(actual: Any, expected: Any, where: str) -> None:
         assert actual == expected, where
 
 
-def perform(abyss: Abyss, call: dict[str, Any]) -> Any:
-    """The recorded call, made through the method it names."""
-    method = call.get("method", "run")
-    options = call.get("options") or {}
-    if method == "run":
-        return abyss.run(call["widget"], call.get("input") or {}, **options)
-    raise AssertionError(f"no such method: {method}")
-
-
 @pytest.mark.parametrize("recording", RECORDINGS, ids=[r["name"] for r in RECORDINGS])
 def test_replay(recording: dict[str, Any]) -> None:
+    call = recording["call"]
+    files = call.get("files") or {}
+    save = call.get("save")
     server = Replay(recording, KEY)
     try:
-        client = recording["call"].get("client") or {}
-        with Abyss(api_key=KEY, base_url=server.base, **client) as abyss:
+        with with_files(files) as dir, Abyss(api_key=KEY, base_url=server.base, **(call.get("client") or {})) as abyss:
             try:
-                value, error = perform(abyss, recording["call"]), None
+                value, error = perform(abyss, call, caller_input(call.get("input") or {}, dir, files)), None
             except AbyssError as raised:
                 value, error = None, raised
+            saved = value.save(dir / save) if save and isinstance(value, Run) else None
 
-        assert server.problems == []
-        assert server.remaining() == 0, "every recorded request was sent"
-        outcome = recording["outcome"]
-        if "run" in outcome:
-            assert isinstance(value, Run), f"expected a run, got {error!r}"
-            assert_fields(value, outcome["run"], "run")
-        else:
-            assert error is not None, f"expected an AbyssError, got {value!r}"
-            fields = dict(outcome["error"])
-            run = fields.pop("run")
-            assert_fields(error, fields, "error")
-            if run is None:
-                assert error.run is None
+            assert server.problems == []
+            assert server.remaining() == 0, "every recorded request was sent"
+            outcome = recording["outcome"]
+            if "run" in outcome:
+                assert isinstance(value, Run), f"expected a run, got {error!r}"
+                assert_fields(value, outcome["run"], "run")
             else:
-                assert_fields(error.run, run, "error.run")
+                assert error is not None, f"expected an AbyssError, got {value!r}"
+                fields = dict(outcome["error"])
+                run = fields.pop("run")
+                assert_fields(error, fields, "error")
+                if run is None:
+                    assert error.run is None
+                else:
+                    assert_fields(error.run, run, "error.run")
+            if "saved" in outcome:
+                assert saved == [dir / save / path for path in outcome["saved"]], "run.save() returns the paths it wrote"
+                for path, content in outcome["saved"].items():
+                    assert (dir / save / path).read_text("utf-8") == content, f"saved {path}"
     finally:
         server.close()
 

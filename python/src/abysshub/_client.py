@@ -13,6 +13,7 @@ from urllib.parse import quote
 import httpx
 
 from ._error import AbyssError
+from ._files import upload_files
 from ._http import request, timeouts
 from ._run import Run, RunError, parse_run
 
@@ -22,6 +23,9 @@ DEV_KEY_PREFIX = "abyss_sk_dev_"
 
 REATTACH_PAUSE = 1.0
 """Seconds between two re-attaches that both ended without the run's ending."""
+
+RETRY_PAUSE = 0.5
+"""Seconds before the first retry after a drop; the pause doubles with each retry."""
 
 
 @dataclass
@@ -80,15 +84,17 @@ class Abyss:
         max_price: float | None = None,
         idempotency_key: str | None = None,
     ) -> Run:
-        """Presses a Widget and waits for the run's ending.
+        """Uploads the input's files, presses a Widget and waits for the run's ending.
 
+        A file Field takes ``file(path)``, a ``Path``, an open file or ``bytes``, or a
+        list of them; a string passes through as an ``https`` URL or an upload id.
         Re-attaches through ``Location`` whenever the hold ends early. Returns the
         succeeded run; raises ``AbyssError`` on a refusal or a failed run.
         """
         press = self._press(widget, input, max_price, idempotency_key)
         reply = press if _has_ended(press) else self._hold(self._wait_url(press), _has_ended)
         assert reply.run is not None
-        run = parse_run(reply.run)
+        run = self._run(reply.run)
         if run.status == "failed":
             error = run.error or RunError("platform_fault", "The run failed.")
             raise AbyssError(error.code, error.message, request_id=reply.request_id, run=run)
@@ -101,14 +107,72 @@ class Abyss:
         max_price: float | None,
         idempotency_key: str | None,
     ) -> _Reply:
-        body: dict[str, Any] = {"input": dict(input)}
+        """Uploads the input's files and sends the press. Its retries send the same body
+        and ``Idempotency-Key``, so the uploads are never redone."""
+        widget_url = self._widget_url(widget)
+        uploaded = upload_files(input, lambda field, filename, data: self._upload(widget_url, field, filename, data))
+        body: dict[str, Any] = {"input": uploaded}
         if max_price is not None:
             body["max_price"] = max_price
         headers = {
             "Content-Type": "application/json",
             "Idempotency-Key": idempotency_key if idempotency_key is not None else str(uuid.uuid4()),
         }
-        return self._send("POST", f"{self._widget_url(widget)}/runs", headers, json.dumps(body).encode())
+        return self._send("POST", f"{widget_url}/runs", headers, json.dumps(body).encode())
+
+    def _upload(self, widget_url: str, field: str, filename: str, data: bytes) -> str:
+        """Asks for an upload, sends the file to storage and answers the upload's id."""
+        grant = self._send(
+            "POST",
+            f"{widget_url}/uploads",
+            {"Content-Type": "application/json"},
+            json.dumps({"field": field, "filename": filename, "size": len(data)}).encode(),
+        )
+        if not _is_upload(grant.body):
+            raise AbyssError(
+                "unexpected_response",
+                "The upload answered without an id and a form.",
+                request_id=grant.request_id,
+            )
+        upload = grant.body["upload"]
+        try:
+            stored = self._http.post(
+                upload["url"],
+                data={name: str(value) for name, value in upload["fields"].items()},
+                files={"file": (filename, data)},
+            )
+        except httpx.TransportError as error:
+            raise AbyssError(
+                "connection_error",
+                f"The connection to storage dropped during the upload of {filename}.",
+                param=field,
+            ) from error
+        if not stored.is_success:
+            raise AbyssError(
+                "unexpected_response",
+                f"Storage answered {stored.status_code} to the upload of {filename}.",
+                status=stored.status_code,
+                param=field,
+            )
+        return str(grant.body["id"])
+
+    def _download(self, url: str) -> tuple[int, bytes]:
+        """Downloads an output file from storage, without the API key."""
+        try:
+            response = self._http.get(url)
+        except httpx.TransportError as error:
+            raise AbyssError("connection_error", "The connection to storage dropped during a download.") from error
+        return response.status_code, response.content
+
+    def _reread(self, id: str) -> dict[str, Any]:
+        """Reads a run with ``GET /v1/runs/{id}``. A cut read is read again."""
+        reply = self._hold(f"{self.base_url}/v1/runs/{quote(id, safe='')}", lambda reply: not reply.cut)
+        if reply.run is None:
+            raise AbyssError("unexpected_response", "The read answered without a run.", request_id=reply.request_id)
+        return reply.run
+
+    def _run(self, data: dict[str, Any]) -> Run:
+        return parse_run(data, self._reread, self._download)
 
     def _hold(self, url: str, done: Callable[[_Reply], bool]) -> _Reply:
         """Reads ``url`` until ``done``. Re-attaching has no limit and is not a retry."""
@@ -132,20 +196,22 @@ class Abyss:
         return str(httpx.URL(f"{self.base_url}/").join(location).copy_set_param("wait", "true"))
 
     def _send(self, method: str, url: str, headers: dict[str, str] | None = None, content: bytes | None = None) -> _Reply:
-        """Sends one request to `/v1`. Every refusal raises at once."""
-        try:
-            answer = request(
-                self._http,
-                method,
-                url,
-                {"Authorization": f"Bearer {self._api_key}", "Accept": "application/json", **(headers or {})},
-                content,
-            )
-        except httpx.TransportError as error:
-            raise AbyssError(
-                "connection_error",
-                "The connection dropped, or timed out, before the API answered.",
-            ) from error
+        """Sends one request to `/v1`. A drop before any headers is sent again, at most
+        ``max_retries`` times; every refusal raises at once."""
+        sent_headers = {"Authorization": f"Bearer {self._api_key}", "Accept": "application/json", **(headers or {})}
+        attempt = 0
+        while True:
+            try:
+                answer = request(self._http, method, url, sent_headers, content)
+                break
+            except httpx.TransportError as error:
+                if attempt >= self.max_retries:
+                    raise AbyssError(
+                        "connection_error",
+                        "The connection dropped, or timed out, before the API answered.",
+                    ) from error
+                time.sleep(RETRY_PAUSE * 2**attempt)
+                attempt += 1
         request_id = answer.headers.get("request-id")
         parsed = _parse(answer.text)
         if answer.status in (200, 202):
@@ -189,6 +255,13 @@ def _parse(text: str | None) -> Any:
 
 def _is_run(value: Any) -> bool:
     return isinstance(value, dict) and isinstance(value.get("id"), str) and isinstance(value.get("status"), str)
+
+
+def _is_upload(value: Any) -> bool:
+    if not isinstance(value, dict) or not isinstance(value.get("id"), str):
+        return False
+    upload = value.get("upload")
+    return isinstance(upload, dict) and isinstance(upload.get("url"), str) and isinstance(upload.get("fields"), dict)
 
 
 def _has_ended(reply: _Reply) -> bool:

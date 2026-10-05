@@ -8,6 +8,8 @@ import socket
 import threading
 import time
 from collections.abc import Callable
+from email.message import Message
+from email.parser import BytesParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -39,7 +41,7 @@ class Replay:
         self.recording = recording
         self.key = key
         self.problems: list[str] = []
-        self.served = 0
+        self.served: set[int] = set()
         self._uuid: str | None = None
         self._lock = threading.Lock()
         self._closing = threading.Event()
@@ -63,7 +65,7 @@ class Replay:
         self._thread.start()
 
     def remaining(self) -> int:
-        return len(self.recording["exchanges"]) - self.served
+        return len(self.recording["exchanges"]) - len(self.served)
 
     def close(self) -> None:
         self._closing.set()
@@ -72,6 +74,23 @@ class Replay:
 
     def _fill(self, value: str) -> str:
         return value.replace("{base}", self.base).replace("{key}", self.key)
+
+    def _candidates(self) -> list[int]:
+        """The exchanges the next request may answer: the first one not yet served, or
+        every unserved one in its block when it is marked ``parallel``."""
+        exchanges = self.recording["exchanges"]
+        first = next((index for index in range(len(exchanges)) if index not in self.served), None)
+        if first is None:
+            return []
+        if not exchanges[first].get("parallel"):
+            return [first]
+        block = []
+        index = first
+        while index < len(exchanges) and exchanges[index].get("parallel"):
+            if index not in self.served:
+                block.append(index)
+            index += 1
+        return block
 
     def _differences(self, index: int, req: BaseHTTPRequestHandler, sent: bytes) -> list[str]:
         exchange = self.recording["exchanges"][index]
@@ -91,16 +110,23 @@ class Replay:
             found.append("storage was sent the API key")
         if "body" in request and _parse_or_text(sent.decode("utf-8")) != request["body"]:
             found.append(f"body is {sent.decode('utf-8')}")
+        if "form" in request:
+            form = _read_form(req.headers.get("Content-Type"), sent)
+            if form != request["form"]:
+                found.append(f"form is {json.dumps(form)}")
         return found
 
     def _choose(self, req: BaseHTTPRequestHandler, sent: bytes) -> int | None:
+        """The candidate the request matches, else the first one, noting why."""
         with self._lock:
-            index = self.served
-            if index >= len(self.recording["exchanges"]):
+            candidates = self._candidates()
+            if not candidates:
                 self.problems.append(f"unexpected {req.command} {req.path}")
                 return None
-            self.served += 1
-            self.problems.extend(f"#{index + 1}: {problem}" for problem in self._differences(index, req, sent))
+            index = next((other for other in candidates if not self._differences(other, req, sent)), candidates[0])
+            found = self._differences(index, req, sent)
+            self.served.add(index)
+            self.problems.extend(f"#{index + 1}: {problem}" for problem in found)
             for name, value in (self.recording["exchanges"][index]["request"].get("headers") or {}).items():
                 if value == "{uuid}" and self._uuid is None:
                     self._uuid = req.headers.get(name)
@@ -125,6 +151,10 @@ class Replay:
             req.send_header("Content-Type", "application/json")
         for name, value in (response.get("headers") or {}).items():
             req.send_header(name, self._fill(value))
+        if response["status"] == 204:
+            req.end_headers()
+            req.wfile.flush()
+            return
         # Chunked, as Node sends it, so a cut is told apart from the body's end.
         req.send_header("Transfer-Encoding", "chunked")
         req.end_headers()
@@ -152,6 +182,24 @@ class Replay:
 def _write_chunk(req: BaseHTTPRequestHandler, data: bytes) -> None:
     req.wfile.write(b"%x\r\n%s\r\n" % (len(data), data))
     req.wfile.flush()
+
+
+def _read_form(content_type: str | None, sent: bytes) -> dict[str, Any]:
+    """A storage upload form, as the recordings write it: each field's text, with the
+    file (which must come last) as its content."""
+    message = BytesParser().parsebytes(b"Content-Type: %s\r\n\r\n%s" % ((content_type or "").encode(), sent))
+    if not message.is_multipart():
+        return {"(not a form)": content_type}
+    form: dict[str, Any] = {}
+    name = None
+    for part in message.get_payload():
+        assert isinstance(part, Message)
+        name = part.get_param("name", header="content-disposition")
+        content = part.get_payload(decode=True)
+        form[str(name)] = content.decode("utf-8") if isinstance(content, bytes) else content
+    if name != "file":
+        form["(the file is not last)"] = True
+    return form
 
 
 def _parse_or_text(text: str) -> Any:

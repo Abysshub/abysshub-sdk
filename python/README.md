@@ -46,6 +46,24 @@ The press holds until the run ends. When the hold ends early (a deploy cuts it, 
 
 A **run** is a dataclass with `/v1`'s fields: `id`, `widget`, `status` (`queued`, `running`, `succeeded` or `failed`), `price`, `result` (the Widget's JSON, a `dict` when it wrote an object), `output_files`, `error`, `created_at`, `started_at` and `ended_at`.
 
+## Files
+
+```python
+from abysshub import Abyss, file
+
+run = abyss.run("widget_1660", {
+    "report": file("report.pdf"),
+    "data": [file("jan.csv"), file(csv_bytes, filename="feb.csv"), "https://example.com/sales/mar.csv"],
+})
+paths = run.save("output")  # [Path("output/charts/a.png"), Path("output/output.json")]
+```
+
+- **`file(path)`** is a file on disk, read when it is uploaded. A file Field also takes a `Path`, an open file (`open("report.pdf", "rb")`) or `bytes`. `file(data, filename=...)` names data. A file without a name uploads under its Field's name.
+- **A string passes through** as an `https` URL or an upload id. A multi-file Field takes a list, which may mix all three kinds.
+- **Before the press,** each file is uploaded with `POST /v1/widgets/{widget}/uploads`, then sent to storage, in parallel, and its id goes in the input. An upload refusal (`held_input_*`) raises before any press. A press that drops before any headers is sent again with the same ids; it never uploads again.
+- **`run.save(dir)`** writes every output file under `dir` at its `path`, making folders, and returns the paths it wrote.
+- **Each of `run.output_files`** has `f.save(path)` and `f.read()`, which returns `bytes`. An expired URL is refreshed once, by reading the run again with `GET /v1/runs/{id}`.
+
 ## Errors
 
 A refusal or a failed run raises one `AbyssError`. Branch on `code`:

@@ -1,0 +1,4 @@
+[
+  {"type": "text-field", "name": "text", "label": "Text to echo", "placeholder": "hello", "default": "hello", "isRequired": true},
+  {"type": "file", "name": "file", "label": "A .txt file up to 1 MB (optional)", "isRequired": false, "mimes": ["txt"], "multiple": false, "maxFileSizeMB": 1}
+]

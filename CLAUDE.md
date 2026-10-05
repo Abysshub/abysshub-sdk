@@ -6,6 +6,7 @@ The official libraries for the Abyss API (`/v1`): **`abysshub`** for JavaScript 
 - **`python/`** is the PyPI package `abysshub`: Python, with plain dataclasses and `py.typed`.
 - **`exchanges/`** holds the recorded exchanges. Each one is a JSON file of requests and responses, including chunks with leading spaces and cuts. A tiny fake server replays them. **Both libraries pass the same exchanges, with the same outcome.**
 - **`contract/openapi.json`** is `/v1`'s contract, copied from the api. Every recorded body is validated against it. It is never edited here (see "The contract file").
+- **`live/`** is the nightly live run against dev (see "The nightly live run"): `live.mjs` and `live.py` make the same checks through each library, and `widget/` is the source of the probe Widget they press.
 
 The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and 2026-10-05) decided them, and the parts a change here needs are quoted below, because this repo cannot read the api's.
 
@@ -69,6 +70,20 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 ## The contract file
 
 `contract/openapi.json` is a copy of the api's `resources/v1/openapi.json` on its `develop` branch. It is refreshed from the abyss workspace with `make sdk-contract`, then committed here. It is never edited by hand. The nightly live run fails when it differs from what dev serves at `/v1/openapi.json`. When a refresh turns the exchange validation red, the libraries need a Slice.
+
+## The nightly live run
+
+`.github/workflows/live.yml` runs every night at 04:17 UTC, and on demand. It is red when the libraries, dev's `/v1` or the api's per-Widget code have drifted apart.
+- **The contract job** diffs `contract/openapi.json` against dev's `/v1/openapi.json`.
+- **The js (Node 20) and python (3.10) jobs** install the library the way a caller does: JS packed and installed in a folder of its own, Python built and installed, not editable. Each runs its `live/` script with the `ABYSS_DEV_API_KEY` secret. It makes five checks:
+  - `run()` with a JSON input;
+  - `run()` with a file input;
+  - `run.save()`;
+  - one `invalid_input` refusal;
+  - the probe Widget's code, run exactly as `GET /api/products/{id}/api-access` (the Widget page's API panel) returns it, with the files it names.
+- **Output:** each check prints one line. A broken one prints its `code` and `request_id`, and the job fails.
+- **The probe** is the Actions variable `ABYSS_PROBE_WIDGET`. It names `live/widget`, published on dev as a public, free Widget from a Test Run that sent a text and a `.txt` file. The scripts know its Fields (`text`, `file`) and its two outputs (`output.json`, `echo.txt`). A change to the probe changes `live/widget` and both scripts together.
+- **The scripts are not tests.** `npm test` and `pytest` never collect them, so the tests never call the live API. A change to the libraries' public surface keeps both scripts working, and agents may change them. The workflow itself is a maintainer's (see "Releases").
 
 ## Releases
 

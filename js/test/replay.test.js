@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { Abyss, AbyssError } from "../dist/index.js";
 import { Run } from "../dist/run.js";
-import { callerInput, perform, withFiles } from "./caller.js";
+import { callerInput, perform, timeoutOnceHeld, withFiles } from "./caller.js";
 import { loadExchanges, replay } from "./fake-server.js";
 
 const KEY = "abyss_sk_fake_for_tests";
@@ -31,7 +31,10 @@ for (const recording of await loadExchanges()) {
     try {
       await withFiles(files, async (dir) => {
         const abyss = new Abyss({ apiKey: KEY, baseURL: server.base, maxRetries: client.max_retries });
-        const outcome = await perform(abyss, recording.call, callerInput(input, dir, files)).then(
+        // A timeout that ends a hold runs out only once the server holds.
+        const call = () => perform(abyss, recording.call, callerInput(input, dir, files));
+        const holds = recording.call.options?.timeout && recording.exchanges.some(({ response }) => response.hold);
+        const outcome = await (holds ? timeoutOnceHeld(server.held, call) : call()).then(
           (value) => ({ value }),
           (error) => ({ error }),
         );

@@ -30,6 +30,8 @@ export async function replay(recording, { key }) {
   const served = new Set();
   let uuid = null;
   let base = "";
+  let holding;
+  const held = new Promise((resolve) => (holding = resolve));
   const fill = (value) => value.replaceAll("{base}", base).replaceAll("{key}", key);
 
   // The exchanges the next request may answer: the first one not yet served, or every
@@ -115,6 +117,7 @@ export async function replay(recording, { key }) {
       await pause();
       res.socket.destroy();
     } else if (response.hold) {
+      holding();
       return;
     } else if (response.body !== undefined) {
       res.end(JSON.stringify(fillEvery(response.body, fill)));
@@ -128,6 +131,8 @@ export async function replay(recording, { key }) {
   return {
     base,
     problems,
+    /** Settles once a held answer has sent its headers and chunks, and the server holds. */
+    held,
     remaining: () => recording.exchanges.length - served.size,
     close: () => {
       server.closeAllConnections();

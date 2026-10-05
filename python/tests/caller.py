@@ -35,9 +35,21 @@ def with_files(files: dict[str, str]) -> Iterator[Path]:
 
 
 def perform(abyss: Abyss, call: dict[str, Any], input: dict[str, Any]) -> Any:
-    """The recorded call, made through the method it names."""
+    """The recorded call, made through the method it names. Its options are already in Python's spelling."""
     method = call.get("method", "run")
     options = call.get("options") or {}
     if method == "run":
         return abyss.run(call["widget"], input, **options)
+    if method == "runs.create":
+        return abyss.runs.create(call["widget"], input, **options)
+    if method == "runs.get":
+        return abyss.runs.get(call["id"], **options)
+    if method == "runs.list":
+        return abyss.runs.list(**options)
+    if method == "widgets.get":
+        return abyss.widgets.get(call["widget"], **options)
+    if method == "uploads.create":
+        return abyss.uploads.create(call["widget"], **options)
+    if method == "key":
+        return abyss.key(**options)
     raise AssertionError(f"no such method: {method}")

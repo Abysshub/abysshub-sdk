@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 
 import httpx
@@ -16,6 +17,10 @@ def timeouts(connect: float = CONNECT_TIMEOUT, silence: float = SILENCE_TIMEOUT)
     return httpx.Timeout(silence, connect=connect)
 
 
+class Stopped(Exception):
+    """The call's deadline passed while its request was waiting."""
+
+
 @dataclass
 class Answer:
     status: int
@@ -30,15 +35,24 @@ def request(
     url: str,
     headers: dict[str, str],
     content: bytes | None = None,
+    timeout: httpx.Timeout | None = None,
+    deadline: float | None = None,
 ) -> Answer:
     """Sends one request and reads its whole body.
 
     A failure before the headers raises ``httpx.TransportError``; a cut after them
-    answers ``text=None``, so the caller can re-attach.
+    answers ``text=None``, so the caller can re-attach. Past ``deadline`` (a
+    ``time.monotonic()`` reading), a hold that still sends its spaces raises ``Stopped``.
     """
-    with client.stream(method, url, headers=headers, content=content) as response:
+    with client.stream(
+        method, url, headers=headers, content=content, timeout=timeout or client.timeout
+    ) as response:
+        chunks = []
         try:
-            body = b"".join(response.iter_bytes())
+            for chunk in response.iter_bytes():
+                chunks.append(chunk)
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise Stopped
         except httpx.TransportError:
             return Answer(response.status_code, response.headers, None)
-    return Answer(response.status_code, response.headers, body.decode("utf-8", errors="replace"))
+    return Answer(response.status_code, response.headers, b"".join(chunks).decode("utf-8", errors="replace"))

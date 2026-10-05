@@ -1,21 +1,25 @@
 from __future__ import annotations
 
 import json
+import math
 import os
+import platform
 import time
 import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from importlib import metadata
 from types import TracebackType
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 import httpx
 
 from ._error import AbyssError
 from ._files import upload_files
-from ._http import request, timeouts
+from ._http import CONNECT_TIMEOUT, SILENCE_TIMEOUT, Answer, Stopped, request, timeouts
 from ._run import Run, RunError, parse_run
+from ._types import Key, RunList, Upload, Widget, parse_key, parse_upload, parse_widget
 
 API = "https://api.abysshub.com"
 DEV_API = "https://api.dev.abysshub.com"
@@ -25,7 +29,17 @@ REATTACH_PAUSE = 1.0
 """Seconds between two re-attaches that both ended without the run's ending."""
 
 RETRY_PAUSE = 0.5
-"""Seconds before the first retry after a drop; the pause doubles with each retry."""
+"""Seconds before the first retry after a drop or a 5xx; the pause doubles with each retry."""
+
+
+def _version() -> str:
+    try:
+        return metadata.version("abysshub")
+    except metadata.PackageNotFoundError:
+        return "0.0.0"
+
+
+USER_AGENT = f"abysshub-python/{_version()} (python {platform.python_version()})"
 
 
 @dataclass
@@ -38,6 +52,97 @@ class _Reply:
     request_id: str | None
 
 
+@dataclass
+class _Call:
+    """One call's waiting: when it stops, and the run as last seen, for a timeout to carry."""
+
+    timeout: float | None
+    deadline: float | None
+    """A ``time.monotonic()`` reading, or None to wait as long as it takes."""
+    seen: dict[str, Any] | None = None
+
+    def left(self) -> float | None:
+        return None if self.deadline is None else self.deadline - time.monotonic()
+
+
+class Runs:
+    """`/v1`'s run routes, one method each."""
+
+    def __init__(self, client: Abyss) -> None:
+        self._client = client
+
+    def create(
+        self,
+        widget: str,
+        input: Mapping[str, Any],
+        *,
+        max_price: float | None = None,
+        idempotency_key: str | None = None,
+        timeout: float | None = None,
+    ) -> Run:
+        """Uploads the input's files and presses with ``"wait": false``: returns the run at once, ``queued``."""
+        client = self._client
+        call = client._start(timeout)
+        press = client._press(call, widget, input, max_price, idempotency_key, hold=False)
+        return client._run(_expect(press, _is_run, "The press answered without a run."))
+
+    def get(self, id: str, wait: bool = False, *, timeout: float | None = None) -> Run:
+        """Reads a run as it is, or with ``wait`` holds until it ends. A failed run is returned, not raised."""
+        client = self._client
+        return client._run(client._get_run(client._start(timeout), id, wait))
+
+    def list(
+        self,
+        limit: int | None = None,
+        starting_after: str | None = None,
+        *,
+        timeout: float | None = None,
+    ) -> RunList:
+        """Returns a page of runs, newest first."""
+        client = self._client
+        params: dict[str, str] = {}
+        if limit is not None:
+            params["limit"] = str(limit)
+        if starting_after is not None:
+            params["starting_after"] = starting_after
+        url = f"{client.base_url}/v1/runs" + (f"?{urlencode(params)}" if params else "")
+        page = client._get(client._start(timeout), url, _is_run_list, "The run list answered without data.")
+        return RunList(data=[client._run(data) for data in page["data"]], has_more=page["has_more"])
+
+
+class Widgets:
+    """`/v1`'s Widget route."""
+
+    def __init__(self, client: Abyss) -> None:
+        self._client = client
+
+    def get(self, widget: str, *, timeout: float | None = None) -> Widget:
+        """Reads a Widget: its price, Free Runs and ``input_schema``."""
+        client = self._client
+        data = client._get(client._start(timeout), client._widget_url(widget), _is_widget, "The Widget answered without an id.")
+        return parse_widget(data)
+
+
+class Uploads:
+    """`/v1`'s upload route."""
+
+    def __init__(self, client: Abyss) -> None:
+        self._client = client
+
+    def create(
+        self,
+        widget: str,
+        field: str,
+        filename: str,
+        size: int | None = None,
+        *,
+        timeout: float | None = None,
+    ) -> Upload:
+        """Asks for an upload's grant. ``run()`` and ``runs.create()`` upload files by themselves."""
+        client = self._client
+        return client._grant(client._start(timeout), client._widget_url(widget), field, filename, size)
+
+
 class Abyss:
     """A client for the Abyss API.
 
@@ -48,8 +153,19 @@ class Abyss:
     base_url: str
     max_retries: int
     """How many times a request is sent again after a drop before any headers, a 429, a 409 or a 5xx."""
+    timeout: float | None
+    """The seconds every call waits at most, unless it sets its own. None by default."""
+    runs: Runs
+    widgets: Widgets
+    uploads: Uploads
 
-    def __init__(self, api_key: str | None = None, base_url: str | None = None, max_retries: int = 2) -> None:
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        max_retries: int = 2,
+        timeout: float | None = None,
+    ) -> None:
         if api_key is None:
             api_key = os.environ.get("ABYSS_API_KEY")
         if not api_key:
@@ -59,6 +175,10 @@ class Abyss:
             base_url = os.environ.get("ABYSS_BASE_URL") or (DEV_API if api_key.startswith(DEV_KEY_PREFIX) else API)
         self.base_url = base_url.rstrip("/")
         self.max_retries = max_retries
+        self.timeout = timeout
+        self.runs = Runs(self)
+        self.widgets = Widgets(self)
+        self.uploads = Uploads(self)
         self._http = httpx.Client(timeout=timeouts())
 
     def close(self) -> None:
@@ -83,16 +203,19 @@ class Abyss:
         *,
         max_price: float | None = None,
         idempotency_key: str | None = None,
+        timeout: float | None = None,
     ) -> Run:
         """Uploads the input's files, presses a Widget and waits for the run's ending.
 
         A file Field takes ``file(path)``, a ``Path``, an open file or ``bytes``, or a
         list of them; a string passes through as an ``https`` URL or an upload id.
         Re-attaches through ``Location`` whenever the hold ends early. Returns the
-        succeeded run; raises ``AbyssError`` on a refusal or a failed run.
+        succeeded run; raises ``AbyssError`` on a refusal or a failed run, and with
+        ``code == "timeout"`` once ``timeout`` seconds have passed.
         """
-        press = self._press(widget, input, max_price, idempotency_key)
-        reply = press if _has_ended(press) else self._hold(self._wait_url(press), _has_ended)
+        call = self._start(timeout)
+        press = self._press(call, widget, input, max_price, idempotency_key, hold=True)
+        reply = press if _has_ended(press) else self._hold(call, self._wait_url(press), _has_ended)
         assert reply.run is not None
         run = self._run(reply.run)
         if run.status == "failed":
@@ -100,48 +223,92 @@ class Abyss:
             raise AbyssError(error.code, error.message, request_id=reply.request_id, run=run)
         return run
 
+    def key(self, *, timeout: float | None = None) -> Key:
+        """Returns the API Key making the call, with ``GET /v1/key``."""
+        return parse_key(self._get(self._start(timeout), f"{self.base_url}/v1/key", _is_key, "The key answered without a key."))
+
+    def _start(self, timeout: float | None) -> _Call:
+        """One call's waiting, under its own ``timeout`` or the client's."""
+        timeout = timeout if timeout is not None else self.timeout
+        return _Call(timeout, None if timeout is None else time.monotonic() + timeout)
+
+    def _timed_out(self, call: _Call) -> AbyssError:
+        return AbyssError(
+            "timeout",
+            f"Stopped waiting after {call.timeout} s. The run goes on.",
+            run=self._run(call.seen) if call.seen is not None else None,
+        )
+
+    def _check(self, call: _Call) -> None:
+        """Raises ``timeout`` once the call's deadline has passed."""
+        left = call.left()
+        if left is not None and left <= 0:
+            raise self._timed_out(call)
+
+    def _sleep(self, call: _Call, seconds: float) -> None:
+        """Waits ``seconds``, or raises ``timeout`` at the call's deadline."""
+        left = call.left()
+        if left is not None and left < seconds:
+            time.sleep(max(left, 0))
+            raise self._timed_out(call)
+        time.sleep(seconds)
+
+    def _timeouts(self, call: _Call) -> httpx.Timeout:
+        """httpx's timeouts for one request, cut short by the call's deadline."""
+        left = call.left()
+        if left is None:
+            return timeouts()
+        return timeouts(connect=min(CONNECT_TIMEOUT, left), silence=min(SILENCE_TIMEOUT, left))
+
     def _press(
         self,
+        call: _Call,
         widget: str,
         input: Mapping[str, Any],
         max_price: float | None,
         idempotency_key: str | None,
+        hold: bool,
     ) -> _Reply:
-        """Uploads the input's files and sends the press. Its retries send the same body
-        and ``Idempotency-Key``, so the uploads are never redone."""
+        """Uploads the input's files and sends the press, with ``"wait": false`` unless it
+        holds. Its retries send the same body and ``Idempotency-Key``, so the uploads are
+        never redone."""
         widget_url = self._widget_url(widget)
-        uploaded = upload_files(input, lambda field, filename, data: self._upload(widget_url, field, filename, data))
+        uploaded = upload_files(
+            input, lambda field, filename, data: self._upload(call, widget_url, field, filename, data)
+        )
         body: dict[str, Any] = {"input": uploaded}
         if max_price is not None:
             body["max_price"] = max_price
+        if not hold:
+            body["wait"] = False
         headers = {
             "Content-Type": "application/json",
             "Idempotency-Key": idempotency_key if idempotency_key is not None else str(uuid.uuid4()),
         }
-        return self._send("POST", f"{widget_url}/runs", headers, json.dumps(body).encode())
+        return self._send(call, "POST", f"{widget_url}/runs", headers, json.dumps(body).encode())
 
-    def _upload(self, widget_url: str, field: str, filename: str, data: bytes) -> str:
-        """Asks for an upload, sends the file to storage and answers the upload's id."""
+    def _grant(self, call: _Call, widget_url: str, field: str, filename: str, size: int | None) -> Upload:
+        """Asks for an upload with ``POST /v1/widgets/{widget}/uploads``."""
+        body: dict[str, Any] = {"field": field, "filename": filename}
+        if size is not None:
+            body["size"] = size
         grant = self._send(
-            "POST",
-            f"{widget_url}/uploads",
-            {"Content-Type": "application/json"},
-            json.dumps({"field": field, "filename": filename, "size": len(data)}).encode(),
+            call, "POST", f"{widget_url}/uploads", {"Content-Type": "application/json"}, json.dumps(body).encode()
         )
-        if not _is_upload(grant.body):
-            raise AbyssError(
-                "unexpected_response",
-                "The upload answered without an id and a form.",
-                request_id=grant.request_id,
-            )
-        upload = grant.body["upload"]
+        return parse_upload(_expect(grant, _is_upload, "The upload answered without an id and a form."))
+
+    def _upload(self, call: _Call, widget_url: str, field: str, filename: str, data: bytes) -> str:
+        """Asks for an upload, sends the file to storage and answers the upload's id."""
+        grant = self._grant(call, widget_url, field, filename, len(data))
         try:
             stored = self._http.post(
-                upload["url"],
-                data={name: str(value) for name, value in upload["fields"].items()},
+                grant.upload.url,
+                data=grant.upload.fields,
                 files={"file": (filename, data)},
+                timeout=self._timeouts(call),
             )
         except httpx.TransportError as error:
+            self._check(call)
             raise AbyssError(
                 "connection_error",
                 f"The connection to storage dropped during the upload of {filename}.",
@@ -154,7 +321,7 @@ class Abyss:
                 status=stored.status_code,
                 param=field,
             )
-        return str(grant.body["id"])
+        return grant.id
 
     def _download(self, url: str) -> tuple[int, bytes]:
         """Downloads an output file from storage, without the API key."""
@@ -164,22 +331,28 @@ class Abyss:
             raise AbyssError("connection_error", "The connection to storage dropped during a download.") from error
         return response.status_code, response.content
 
+    def _get_run(self, call: _Call, id: str, wait: bool) -> dict[str, Any]:
+        """Reads a run with ``GET /v1/runs/{id}``, holding with ``?wait=true``. A cut hold is read again."""
+        url = f"{self.base_url}/v1/runs/{quote(id, safe='')}" + ("?wait=true" if wait else "")
+        reply = self._hold(call, url, lambda reply: not reply.cut)
+        return _expect(reply, _is_run, "The read answered without a run.")
+
     def _reread(self, id: str) -> dict[str, Any]:
-        """Reads a run with ``GET /v1/runs/{id}``. A cut read is read again."""
-        reply = self._hold(f"{self.base_url}/v1/runs/{quote(id, safe='')}", lambda reply: not reply.cut)
-        if reply.run is None:
-            raise AbyssError("unexpected_response", "The read answered without a run.", request_id=reply.request_id)
-        return reply.run
+        return self._get_run(_Call(None, None), id, False)
 
     def _run(self, data: dict[str, Any]) -> Run:
         return parse_run(data, self._reread, self._download)
 
-    def _hold(self, url: str, done: Callable[[_Reply], bool]) -> _Reply:
+    def _get(self, call: _Call, url: str, is_: Callable[[Any], bool], message: str) -> Any:
+        """Reads ``url`` once and returns its body, when it is what the route answers."""
+        return _expect(self._send(call, "GET", url), is_, message)
+
+    def _hold(self, call: _Call, url: str, done: Callable[[_Reply], bool]) -> _Reply:
         """Reads ``url`` until ``done``. Re-attaching has no limit and is not a retry."""
-        reply = self._send("GET", url)
+        reply = self._send(call, "GET", url)
         while not done(reply):
-            time.sleep(REATTACH_PAUSE)
-            reply = self._send("GET", url)
+            self._sleep(call, REATTACH_PAUSE)
+            reply = self._send(call, "GET", url)
         return reply
 
     def _widget_url(self, widget: str) -> str:
@@ -195,29 +368,73 @@ class Abyss:
             )
         return str(httpx.URL(f"{self.base_url}/").join(location).copy_set_param("wait", "true"))
 
-    def _send(self, method: str, url: str, headers: dict[str, str] | None = None, content: bytes | None = None) -> _Reply:
-        """Sends one request to `/v1`. A drop before any headers is sent again, at most
-        ``max_retries`` times; every refusal raises at once."""
-        sent_headers = {"Authorization": f"Bearer {self._api_key}", "Accept": "application/json", **(headers or {})}
+    def _send(
+        self,
+        call: _Call,
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        content: bytes | None = None,
+    ) -> _Reply:
+        """Sends one request to `/v1`. A drop before any headers, a 429, a 409 and a 5xx
+        are sent again, at most ``max_retries`` times; every other refusal raises at once."""
+        sent_headers = {
+            "Authorization": f"Bearer {self._api_key}",
+            "Accept": "application/json",
+            "User-Agent": USER_AGENT,
+            **(headers or {}),
+        }
         attempt = 0
         while True:
+            self._check(call)
             try:
-                answer = request(self._http, method, url, sent_headers, content)
-                break
+                answer = request(self._http, method, url, sent_headers, content, self._timeouts(call), call.deadline)
+            except Stopped:
+                raise self._timed_out(call) from None
             except httpx.TransportError as error:
+                self._check(call)
                 if attempt >= self.max_retries:
                     raise AbyssError(
                         "connection_error",
                         "The connection dropped, or timed out, before the API answered.",
                     ) from error
-                time.sleep(RETRY_PAUSE * 2**attempt)
+                self._sleep(call, _backoff(attempt))
                 attempt += 1
-        request_id = answer.headers.get("request-id")
-        parsed = _parse(answer.text)
-        if answer.status in (200, 202):
-            run = parsed if _is_run(parsed) else None
-            return _Reply(parsed, run, answer.text is None, answer.headers.get("location"), request_id)
-        raise _refusal(answer.status, parsed, request_id)
+                continue
+            request_id = answer.headers.get("request-id")
+            parsed = _parse(answer.text)
+            if answer.status in (200, 202):
+                run = parsed if _is_run(parsed) else None
+                if run is not None:
+                    call.seen = run
+                return _Reply(parsed, run, answer.text is None, answer.headers.get("location"), request_id)
+            pause = _retry_pause(answer, attempt)
+            if pause is None or attempt >= self.max_retries:
+                raise _refusal(answer.status, parsed, request_id)
+            self._sleep(call, pause)
+            attempt += 1
+
+
+def _retry_pause(answer: Answer, attempt: int) -> float | None:
+    """How long to wait before sending a refused request again, or None when it is not retried."""
+    if answer.status in (409, 429):
+        try:
+            seconds = float(answer.headers.get("retry-after", ""))
+        except ValueError:
+            return _backoff(attempt)
+        return seconds if math.isfinite(seconds) and seconds >= 0 else _backoff(attempt)
+    return _backoff(attempt) if answer.status >= 500 else None
+
+
+def _backoff(attempt: int) -> float:
+    return RETRY_PAUSE * 2**attempt
+
+
+def _expect(reply: _Reply, is_: Callable[[Any], bool], message: str) -> Any:
+    """The reply's body when it is what the route answers, else ``unexpected_response``."""
+    if is_(reply.body):
+        return reply.body
+    raise AbyssError("unexpected_response", message, request_id=reply.request_id)
 
 
 def _refusal(status: int, body: Any, request_id: str | None) -> AbyssError:
@@ -255,6 +472,23 @@ def _parse(text: str | None) -> Any:
 
 def _is_run(value: Any) -> bool:
     return isinstance(value, dict) and isinstance(value.get("id"), str) and isinstance(value.get("status"), str)
+
+
+def _is_run_list(value: Any) -> bool:
+    return (
+        isinstance(value, dict)
+        and isinstance(value.get("data"), list)
+        and all(_is_run(item) for item in value["data"])
+        and isinstance(value.get("has_more"), bool)
+    )
+
+
+def _is_widget(value: Any) -> bool:
+    return isinstance(value, dict) and isinstance(value.get("id"), str)
+
+
+def _is_key(value: Any) -> bool:
+    return isinstance(value, dict) and isinstance(value.get("key"), str)
 
 
 def _is_upload(value: Any) -> bool:

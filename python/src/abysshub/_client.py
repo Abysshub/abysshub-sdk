@@ -14,7 +14,7 @@ import httpx
 
 from ._error import AbyssError
 from ._http import request, timeouts
-from ._run import Run, parse_run
+from ._run import Run, RunError, parse_run
 
 API = "https://api.abysshub.com"
 DEV_API = "https://api.dev.abysshub.com"
@@ -47,7 +47,7 @@ class Abyss:
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None, max_retries: int = 2) -> None:
         if api_key is None:
-            api_key = os.environ.get("ABYSS_API_KEY") or None
+            api_key = os.environ.get("ABYSS_API_KEY")
         if not api_key:
             raise AbyssError("invalid_api_key", "No Abyss API key: pass api_key, or set ABYSS_API_KEY.")
         self._api_key = api_key
@@ -90,12 +90,8 @@ class Abyss:
         assert reply.run is not None
         run = parse_run(reply.run)
         if run.status == "failed":
-            raise AbyssError(
-                run.error.code if run.error else "platform_fault",
-                run.error.message if run.error else "The run failed.",
-                request_id=reply.request_id,
-                run=run,
-            )
+            error = run.error or RunError("platform_fault", "The run failed.")
+            raise AbyssError(error.code, error.message, request_id=reply.request_id, run=run)
         return run
 
     def _press(

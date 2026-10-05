@@ -77,7 +77,8 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 - **A stable version publishes only from a published GitHub Release tagged `vX.Y.Z`:** npm `latest` and a final PyPI version, in the `release` environment, which waits for a maintainer's approval.
 - **The workflow computes every version.** A stable version is its tag. A pre-release is the patch after the newest `vX.Y.Z` tag on `main`, plus the number of commits since that tag: `0.1.1-dev.4` on npm, `0.1.1.dev4` on PyPI. The `0.0.0` in the package files is never bumped.
 - **Publishing uses trusted publishing only.** Each registry trusts `release.yml` in the `next` and `release` environments, and nothing else. No token is stored anywhere.
-- **Agents never publish.** They never run `npm publish` or `twine`, never create a release or a tag, never run `gh workflow run`, never change a package's name or version, and never edit `release.yml`. They change `ci.yml` only when their issue asks for it.
+- **Agents never publish.** They never run `npm publish` or `twine`, never create a release or a tag, never run `gh workflow run`, never change a package's name or version, and never edit `release.yml`.
+- **Agents never change anything under `.github/workflows/`.** The ralph loop's token deliberately has no `workflow` scope, so CI, which holds the dev key and trusted publishing, stays out of an agent's reach. GitHub refuses such a push, and the lane fails after its review (sdk #8, 2026-10-05). An issue that needs a workflow change is `ready-for-human` and is done in a Claude Code session with a maintainer.
 
 ## Docs
 

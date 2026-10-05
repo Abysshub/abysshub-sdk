@@ -1,5 +1,6 @@
 export {
   Abyss,
+  Abyss as default,
   type AbyssOptions,
   type CallOptions,
   type GetRunOptions,
@@ -10,7 +11,6 @@ export {
   type Uploads,
   type Widgets,
 } from "./client.js";
-export { Abyss as default } from "./client.js";
 export { AbyssError, type AbyssErrorFields } from "./error.js";
 export { file, type FileData, type FileOptions, type InputFile } from "./files.js";
 export type { Run, RunFile } from "./run.js";

@@ -38,7 +38,6 @@ test("the packed package runs the import each Widget's page shows", async () => 
       'import { Abyss as Named, file as namedFile } from "abysshub";',
       'const abyss = new Abyss({ apiKey: "abyss_sk_dev_test" });',
       "if (Abyss !== Named) throw new Error('the default Abyss is not the named Abyss');",
-      "if (!(abyss instanceof Named)) throw new Error('new Abyss() is not a Named instance');",
       "if (typeof abyss.run !== 'function') throw new Error('abyss.run is not a function');",
       "if (file !== namedFile) throw new Error('file differs');",
       'console.log("ok");',

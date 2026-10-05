@@ -1,0 +1,1318 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AbyssHub API",
+    "version": "1",
+    "summary": "Run any AbyssHub Widget from your code or your agent.",
+    "description": "Run an AbyssHub Widget from code: press it with an input, then read the run until it ends.\n\n## The key\n\nSend an API Key on every request as `Authorization: Bearer abyss_sk_…`. Create one in your Cave. A key acts as you: its runs are paid from your wallet and are private to you. Read it from an environment variable such as `ABYSS_API_KEY`; never write it into code. A key is a server-side secret, so `/v1` sends no CORS headers and no browser can call it.\n\n## The one loop\n\nEvery Widget, every run length, the same code:\n\n1. `GET /v1/widgets/{id}` tells you the `price` you pay and the `input_schema` your input must match.\n2. Press: `POST /v1/widgets/{id}/runs` with `{\"input\": {…}}`. It answers `202` at once, with the run `queued`. The press never waits.\n3. Read: `GET /v1/runs/{id}` with the header `Prefer: wait`. It holds until the run ends, for at most 50 seconds, then answers `200` with the run either way. While `status` is `queued` or `running`, read again. Stop at `succeeded` or `failed`.\n\nThe same loop serves a 3-second run and a 30-minute run.\n\n## Files\n\nA file Field takes an `https` URL on a public address, which the API fetches at the press, or the `id` of an upload from `POST /v1/widgets/{id}/uploads`. A finished run lists what it wrote in `output_files`. Each `url` there is signed fresh on every read and expires: re-read the run, never store a URL.\n\n## Errors\n\nA failure is `{\"error\": {\"code\", \"message\", \"param\"?, \"doc_url\", …}, \"request_id\"}`. Branch on `error.code`, never on the status or the `message`: the message is written for a person and may change, the code never does. Every code, its status and what to do about it is listed in `components.schemas.ErrorCode`. Every response carries a `Request-Id` header; quote it to support.\n\n## Retrying safely\n\nSend an `Idempotency-Key` header with a press and you may retry it after a timeout or a dropped connection: a retry with the same key and the same body returns the first press's run, with `Idempotent-Replayed: true`, and never runs or charges twice. Reading a run is always safe to retry. On `429 rate_limited` and `409 idempotency_key_in_use`, wait the `Retry-After` seconds; no other failure sends it.\n\n## Versioning\n\nThe version is the `/v1` path; there is no version header. Within `/v1` fields, codes and optional parameters are only ever added. Nothing is renamed, removed or given a new meaning. Ignore the fields and codes you don't know. A breaking change would be `/v2`, beside `/v1`."
+  },
+  "externalDocs": {
+    "description": "API access: the key, the loop, files and errors.",
+    "url": "https://abysshub.com/documentation/api"
+  },
+  "servers": [
+    {
+      "url": "https://api.abysshub.com"
+    }
+  ],
+  "security": [
+    {
+      "ApiKey": []
+    }
+  ],
+  "paths": {
+    "/v1/key": {
+      "get": {
+        "operationId": "getKey",
+        "summary": "The API Key you are sending",
+        "description": "What the key on this request is, whose it is, and what it has spent this calendar month (UTC) against its Spend Cap. Use it to check a key before you press anything.",
+        "responses": {
+          "200": {
+            "description": "The key, never its secret.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Key"
+                },
+                "example": {
+                  "name": "Chart bot",
+                  "key": "abyss_sk_…3f9a",
+                  "user": {
+                    "id": 412,
+                    "name": "ada"
+                  },
+                  "spend_cap": 50,
+                  "spent_this_month": 12.4,
+                  "created_at": "2026-10-04T09:12:44Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/widgets/{id}": {
+      "get": {
+        "operationId": "getWidget",
+        "summary": "A Widget, before you press it",
+        "description": "What the Widget does, the one price you pay for a run, your Free Runs on it, and the exact input it takes as JSON Schema. Read it once before your first press, and again if a press answers `invalid_input` or `price_above_max`.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WidgetId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The Widget.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                },
+                "example": {
+                  "id": "widget_1660",
+                  "name": "Chart Maker",
+                  "description": "Turns a CSV into a bar chart.",
+                  "url": "https://abysshub.com/widgets/1660",
+                  "price": 3.1,
+                  "free_runs": {
+                    "limit": 10,
+                    "remaining": 7
+                  },
+                  "input_schema": {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "description": "Chart title",
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "data": {
+                        "description": "CSV file\n\nAn https URL or an upload id.",
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "data"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/widgets/{id}/uploads": {
+      "post": {
+        "operationId": "createUpload",
+        "summary": "Upload a local file for a file Field",
+        "description": "For a file that is not at a public `https` URL. Name the file Field and the file; the answer is an `id` and an S3 upload form. Send the form as `multipart/form-data` to `upload.url`: every entry of `upload.fields` first, then the file itself as `file`. Then press with the `id` as that Field's value. The id is yours alone, for this Widget, and the upload goes straight to storage, never through this API.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WidgetId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequest"
+              },
+              "example": {
+                "field": "data",
+                "filename": "sales.csv",
+                "size": 48213
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The upload's id and the form to send the file with.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                },
+                "example": {
+                  "id": "inputs/412/1660/held/9b2c/sales.csv",
+                  "upload": {
+                    "url": "https://abysshub-uploads.s3.amazonaws.com",
+                    "fields": {
+                      "key": "inputs/412/1660/held/9b2c/sales.csv",
+                      "Policy": "eyJleHBpcmF0aW9uIjoi…",
+                      "X-Amz-Signature": "5d1f…"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableContent"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/widgets/{id}/runs": {
+      "post": {
+        "operationId": "createRun",
+        "summary": "Press: start one run of a Widget",
+        "description": "Starts one run and answers `202` at once with the run `queued`; it never waits for the run. Then read it with `GET /v1/runs/{id}` and `Prefer: wait` until `status` is `succeeded` or `failed`.\n\nThe checks run in this order, and every refusal comes before the charge, so a refused press costs nothing: the key, the Widget, the `Idempotency-Key`, the body and the input, the URLs your file Fields name, `max_price`, the key's Spend Cap, then your wallet.\n\nThe run costs the Widget's `price` from `GET /v1/widgets/{id}`. A failed run is refunded.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WidgetId"
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PressRequest"
+              },
+              "example": {
+                "input": {
+                  "title": "Sales by month",
+                  "data": "https://example.com/sales.csv"
+                },
+                "max_price": 5
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The run, as the press accepted it: always `queued`. A replay of an earlier press (same `Idempotency-Key`, same body) returns that press's run as it is now, with `Idempotent-Replayed: true`.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              },
+              "Idempotent-Replayed": {
+                "$ref": "#/components/headers/IdempotentReplayed"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                },
+                "example": {
+                  "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+                  "widget": "widget_1660",
+                  "status": "queued",
+                  "price": 3.1,
+                  "result": null,
+                  "output_files": [],
+                  "error": null,
+                  "created_at": "2026-10-04T09:15:02Z",
+                  "started_at": null,
+                  "ended_at": null
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableContent"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/runs": {
+      "get": {
+        "operationId": "listRuns",
+        "summary": "Your API runs, newest first",
+        "description": "The runs made through `/v1` by any of your keys, newest first, a page at a time, so you can find a run whose id you lost. Runs from the website are not listed. There are no filters and no totals: while `has_more` is true, ask for the next page with `starting_after` set to the last run's `id`.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Limit"
+          },
+          {
+            "$ref": "#/components/parameters/StartingAfter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of runs, each as it is now.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunList"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+                      "widget": "widget_1660",
+                      "status": "running",
+                      "price": 3.1,
+                      "result": null,
+                      "output_files": [],
+                      "error": null,
+                      "created_at": "2026-10-04T09:15:02Z",
+                      "started_at": "2026-10-04T09:15:04Z",
+                      "ended_at": null
+                    }
+                  ],
+                  "has_more": false
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableContent"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/runs/{id}": {
+      "get": {
+        "operationId": "getRun",
+        "summary": "Read a run, waiting for its ending",
+        "description": "The run as it is now. With `Prefer: wait` the read holds until the run ends, for at most 50 seconds, then answers `200` with the run either way; read again while `status` is `queued` or `running`. Without the header it answers at once.\n\nRe-read the run whenever you need its files: each `output_files[].url` is signed fresh on every read and expires, so never store one.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RunId"
+          },
+          {
+            "$ref": "#/components/parameters/Prefer"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The run.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                },
+                "example": {
+                  "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+                  "widget": "widget_1660",
+                  "status": "succeeded",
+                  "price": 3.1,
+                  "result": {
+                    "bars": 12
+                  },
+                  "output_files": [
+                    {
+                      "path": "charts/a.png",
+                      "size": 48213,
+                      "content_type": "image/png",
+                      "url": "https://abysshub-outputs.s3.amazonaws.com/runs/9201/output/charts/a.png?X-Amz-Signature=…"
+                    },
+                    {
+                      "path": "output.json",
+                      "size": 12,
+                      "content_type": "application/json",
+                      "url": "https://abysshub-outputs.s3.amazonaws.com/runs/9201/output/output.json?X-Amz-Signature=…"
+                    }
+                  ],
+                  "error": null,
+                  "created_at": "2026-10-04T09:15:02Z",
+                  "started_at": "2026-10-04T09:15:04Z",
+                  "ended_at": "2026-10-04T09:15:31Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "summary": "This document",
+        "description": "The `/v1` contract as OpenAPI 3.1. It needs no key.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "This document.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "ApiKey": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "abyss_sk_…",
+        "description": "An API Key, as `Authorization: Bearer abyss_sk_…`. Create one in your Cave; it is shown once. A missing, unknown or revoked key, or a website sign-in token, is `401 invalid_api_key`."
+      }
+    },
+    "parameters": {
+      "WidgetId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "The Widget's id, `widget_` and its number (as in `widget_1660`), or the private token of an unlisted Widget you were given the private link to. Nothing else names a Widget.",
+        "schema": {
+          "type": "string"
+        },
+        "example": "widget_1660"
+      },
+      "RunId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "The run's `id`, `run_` and 24 characters, as the press answered it.",
+        "schema": {
+          "type": "string",
+          "pattern": "^run_[A-Za-z0-9]{24}$"
+        },
+        "example": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N"
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "description": "Makes the press safe to retry. Any 1 to 255 visible ASCII characters; a UUID is a good choice, new for each new press. The key is kept for 24 hours and is yours alone. A retry with the same key and the same body returns the first press's run as it is now, with `Idempotent-Replayed: true`, and never runs or charges twice. The same key with a different body is `422 idempotency_key_reused`; the same key while the first press is still being handled is `409 idempotency_key_in_use`. A refused press is not kept, so fix the request and send it again with the same key.",
+        "schema": {
+          "type": "string",
+          "pattern": "^[\\x21-\\x7E]{1,255}$"
+        },
+        "example": "5f0c3b9e-1d7a-4c2e-9a61-0b8f2d4e7c13"
+      },
+      "Prefer": {
+        "name": "Prefer",
+        "in": "header",
+        "required": false,
+        "description": "`wait` holds the read until the run ends, for at most 50 seconds from when the request arrived; `wait=N` holds at most N seconds (never past 50). The answer is the run either way. The server may answer at once when it is busy, as RFC 7240 lets it, so always read again while `status` is `queued` or `running`.",
+        "schema": {
+          "type": "string"
+        },
+        "example": "wait"
+      },
+      "Limit": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "description": "How many runs to answer, 1 to 100.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        }
+      },
+      "StartingAfter": {
+        "name": "starting_after",
+        "in": "query",
+        "required": false,
+        "description": "The `id` of the last run on the page you have: the page answered starts after it.",
+        "schema": {
+          "type": "string",
+          "pattern": "^run_[A-Za-z0-9]{24}$"
+        }
+      }
+    },
+    "headers": {
+      "RequestId": {
+        "description": "This request's id, on every response. Quote it to support; it is also the `request_id` in an error.",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "pattern": "^req_[A-Za-z0-9]{24}$"
+        }
+      },
+      "RetryAfter": {
+        "description": "How many seconds to wait before sending the request again.",
+        "required": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "IdempotentReplayed": {
+        "description": "`true` when this answer replays an earlier press with the same `Idempotency-Key`; absent otherwise.",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "The press was refused by a limit you set, and nothing was charged: `spend_cap_reached` or `price_above_max`. Retrying the same request will not help.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "price_above_max",
+                "message": "This run costs 3.1 Ƀ, more than the max_price you sent. Nothing was charged. Check the price (GET /v1/widgets/{id}), then press again with a higher max_price or none.",
+                "doc_url": "https://abysshub.com/documentation/api#price_above_max",
+                "price": 3.1
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "`invalid_api_key`: the key is missing, unknown or revoked, or a website sign-in token was sent instead.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "invalid_api_key",
+                "message": "Send a live API Key as \"Authorization: Bearer abyss_sk_…\". Create one in your Cave; a revoked key, or a website sign-in, is not accepted here.",
+                "doc_url": "https://abysshub.com/documentation/api#invalid_api_key"
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
+      "PaymentRequired": {
+        "description": "`insufficient_funds`: your wallet can't cover the price; `shortfall` says by how much. Nothing was charged.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "insufficient_funds",
+                "message": "Your Available Byssium is 0.3 Ƀ short of this run's price. Top up your wallet, then press again.",
+                "doc_url": "https://abysshub.com/documentation/api#insufficient_funds",
+                "shortfall": 0.3
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "`not_found`: this key can't see the Widget or run, or nothing is at this path. A run is readable only when it was made through `/v1` by one of your keys.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "not_found",
+                "message": "There is nothing at this address that this API Key can see.",
+                "doc_url": "https://abysshub.com/documentation/api#not_found"
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "`idempotency_key_in_use`: the first press with this `Idempotency-Key` is still being handled. Wait the `Retry-After` seconds, then send the same request again to get its run.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/RetryAfter"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "UnprocessableContent": {
+        "description": "The request can't be taken as sent, and nothing was charged: `invalid_request`, `invalid_input`, `input_unreachable`, `idempotency_key_reused` or a `held_input_*` code. `param` names the part at fault.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "invalid_input",
+                "message": "The input does not match this Widget's input_schema (GET /v1/widgets/{id}): The title field is required.",
+                "param": "title",
+                "doc_url": "https://abysshub.com/documentation/api#invalid_input"
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "`rate_limited`: this key sent too many requests this minute, across all of `/v1`. Wait the `Retry-After` seconds.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/RetryAfter"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "ServerError": {
+        "description": "`server_error`: the platform's fault. Try again; quote the `request_id` if it keeps happening.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Byssium": {
+        "type": "number",
+        "minimum": 0,
+        "description": "An amount of Byssium (Ƀ), the platform's currency, to the hundredth."
+      },
+      "Timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "description": "A moment in UTC, ISO 8601 with a `Z`."
+      },
+      "Key": {
+        "type": "object",
+        "description": "An API Key, as the caller holding it sees it. Never its secret.",
+        "required": [
+          "name",
+          "key",
+          "user",
+          "spend_cap",
+          "spent_this_month",
+          "created_at"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name you gave the key."
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^abyss_sk_",
+            "description": "The key's display form: its prefix and last four characters."
+          },
+          "user": {
+            "type": "object",
+            "description": "The person the key acts as. Its runs are theirs.",
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string",
+                "description": "Their username."
+              }
+            }
+          },
+          "spend_cap": {
+            "description": "The most this key may spend in a calendar month (UTC), or null when it has no cap. A press that would pass it is `400 spend_cap_reached`.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Byssium"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spent_this_month": {
+            "$ref": "#/components/schemas/Byssium",
+            "description": "The `price` of this key's runs this calendar month (UTC): what its Spend Cap is held to."
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/Timestamp"
+          }
+        }
+      },
+      "Widget": {
+        "type": "object",
+        "description": "A Widget, as the caller about to press it sees it.",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "url",
+          "price",
+          "free_runs",
+          "input_schema"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^widget_[1-9][0-9]*$",
+            "description": "The Widget's id, for the paths."
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the Widget does, as plain text: no markup, a newline between paragraphs. Null when the Widget has none."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The Widget's page on the website."
+          },
+          "price": {
+            "$ref": "#/components/schemas/Byssium",
+            "description": "The one price you pay for a run: the Widget's price for you plus the Call Price. A Free Run costs only the Call Price. It is what `max_price` is checked against."
+          },
+          "free_runs": {
+            "description": "Your Free Runs on this Widget, never folded into `price`; null for your own Widget and for a free one.",
+            "anyOf": [
+              {
+                "type": "object",
+                "required": [
+                  "limit",
+                  "remaining"
+                ],
+                "properties": {
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "remaining": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "input_schema": {
+            "$ref": "#/components/schemas/InputSchema"
+          }
+        }
+      },
+      "InputSchema": {
+        "type": "object",
+        "description": "The input this Widget takes, as a JSON Schema 2020-12 object: one property per Field, keyed by the Field's name. Validate your `input` against it before you press. A file Field is a string, an `https` URL or an upload `id`, or a list of them for a multi-file Field. A date Field is `YYYY-MM-DD`. A key that is not a Field is refused.",
+        "required": [
+          "$schema",
+          "type",
+          "properties",
+          "required",
+          "additionalProperties"
+        ],
+        "properties": {
+          "$schema": {
+            "const": "https://json-schema.org/draft/2020-12/schema"
+          },
+          "type": {
+            "const": "object"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          },
+          "required": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": {
+            "const": false
+          }
+        }
+      },
+      "UploadRequest": {
+        "type": "object",
+        "description": "Which file Field the file is for, and its name. Nothing else is taken.",
+        "required": [
+          "field",
+          "filename"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "The file Field's name, as in `input_schema`."
+          },
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "The file's name; its extension must be one the Field takes."
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The file's size in bytes. Given, a file over the Field's limit is refused now rather than at the upload."
+          }
+        }
+      },
+      "Upload": {
+        "type": "object",
+        "description": "An upload: the id to put in `input`, and the form that sends the file.",
+        "required": [
+          "id",
+          "upload"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The upload's id: the value of its file Field at the press."
+          },
+          "upload": {
+            "type": "object",
+            "description": "An S3 POST form. Send `multipart/form-data` to `url` with every entry of `fields`, then the file as `file`. It expires within the hour.",
+            "required": [
+              "url",
+              "fields"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "fields": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PressRequest": {
+        "type": "object",
+        "description": "A press. An empty body is an empty input. Any other key is refused with `invalid_request`.",
+        "additionalProperties": false,
+        "properties": {
+          "input": {
+            "type": "object",
+            "description": "The Widget's Fields by name, matching its `input_schema`. A key that is not a Field is `invalid_input`."
+          },
+          "max_price": {
+            "type": "number",
+            "description": "The most you will pay for this run. If the Widget's `price` has risen above it, the press is `400 price_above_max` and nothing is charged."
+          }
+        }
+      },
+      "Run": {
+        "type": "object",
+        "description": "A run. Read it again to see it move: fields are only ever added to it.",
+        "required": [
+          "id",
+          "widget",
+          "status",
+          "price",
+          "result",
+          "output_files",
+          "error",
+          "created_at",
+          "started_at",
+          "ended_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^run_[A-Za-z0-9]{24}$",
+            "description": "The run's id, for `GET /v1/runs/{id}`."
+          },
+          "widget": {
+            "type": "string",
+            "pattern": "^widget_[1-9][0-9]*$",
+            "description": "The id of the Widget it ran."
+          },
+          "status": {
+            "type": "string",
+            "description": "Where the run is. Read again while it is `queued` or `running`; `succeeded` and `failed` are final. A status never moves backwards: once a run reads `running`, it never reads `queued` again.",
+            "oneOf": [
+              {
+                "const": "queued",
+                "description": "Waiting to start, in line behind your other runs included."
+              },
+              {
+                "const": "running",
+                "description": "Building, starting or running."
+              },
+              {
+                "const": "succeeded",
+                "description": "Ended well: read `result` and `output_files`."
+              },
+              {
+                "const": "failed",
+                "description": "Ended badly and refunded: read `error`."
+              }
+            ]
+          },
+          "price": {
+            "$ref": "#/components/schemas/Byssium",
+            "description": "What this run cost you, and `0` once it failed, because a failed run is refunded. The sum over your runs is exactly what you spent."
+          },
+          "result": {
+            "description": "Once the run succeeded, the JSON the Widget wrote to `output/output.json`, if it wrote one; null otherwise. Any JSON value."
+          },
+          "output_files": {
+            "type": "array",
+            "description": "The files the run wrote, empty until it ends.",
+            "items": {
+              "$ref": "#/components/schemas/RunFile"
+            }
+          },
+          "error": {
+            "description": "Why the run failed, once it has; null otherwise.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RunError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "When it was pressed."
+          },
+          "started_at": {
+            "description": "When it first left `queued`; null until then. Once set, it never changes.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ended_at": {
+            "description": "When it ended; null until then.",
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Timestamp"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "RunList": {
+        "type": "object",
+        "description": "A page of runs, newest first.",
+        "required": [
+          "data",
+          "has_more"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Run"
+            }
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "Whether a page `starting_after` the last run here would find more."
+          }
+        }
+      },
+      "RunFile": {
+        "type": "object",
+        "description": "One file the run wrote.",
+        "required": [
+          "path",
+          "size",
+          "content_type",
+          "url"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Its path inside the run's `output/` folder, as `charts/a.png`; `output.json` is listed too."
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Its size in bytes."
+          },
+          "content_type": {
+            "type": "string",
+            "description": "Its media type, from its extension."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Where to download it. Signed fresh on every read, and it expires: re-read the run, never store a URL."
+          }
+        }
+      },
+      "RunError": {
+        "type": "object",
+        "description": "How a failed run ended. The run was refunded.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/RunErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "description": "What happened, for a person. Branch on `code`, never on this."
+          }
+        }
+      },
+      "RunErrorCode": {
+        "type": "string",
+        "description": "Why a run failed. Every one is refunded.",
+        "oneOf": [
+          {
+            "const": "widget_fault",
+            "description": "The Widget's own code crashed or wrote no output; check your input, because pressing again with the same one will likely fail the same way."
+          },
+          {
+            "const": "platform_fault",
+            "description": "The platform's machinery failed, not the Widget; press again."
+          },
+          {
+            "const": "budget_exceeded",
+            "description": "The run reached the Run Budget and was stopped; press again only with a smaller input."
+          }
+        ]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "Every failure: one `error` object, with the request's id beside it.",
+        "required": [
+          "error",
+          "request_id"
+        ],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/Error"
+          },
+          "request_id": {
+            "type": "string",
+            "pattern": "^req_[A-Za-z0-9]{24}$",
+            "description": "The same id as the `Request-Id` header. Quote it to support."
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "doc_url"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "description": "What to do, for a person. It may change; branch on `code`."
+          },
+          "param": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The Field, body key, query key or header at fault; null when the body is not a JSON object."
+          },
+          "doc_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "This code on the API access page."
+          },
+          "shortfall": {
+            "$ref": "#/components/schemas/Byssium",
+            "description": "With `insufficient_funds`: how much Byssium your wallet is short of the price."
+          },
+          "price": {
+            "$ref": "#/components/schemas/Byssium",
+            "description": "With `price_above_max`: what the run costs now."
+          }
+        }
+      },
+      "ErrorCode": {
+        "type": "string",
+        "description": "Every code `/v1` sends, its HTTP status (`x-status`) and what to do. New codes may be added; treat one you don't know by its status.",
+        "oneOf": [
+          {
+            "const": "invalid_api_key",
+            "x-status": 401,
+            "description": "Send a live API Key as `Authorization: Bearer abyss_sk_…`; a missing, unknown or revoked key, or a website sign-in token, is refused, so create a new key in your Cave if this one is gone."
+          },
+          {
+            "const": "not_found",
+            "x-status": 404,
+            "description": "Check the id and the path: this key can't see that Widget or run, and a run is readable only when one of your keys made it through `/v1`."
+          },
+          {
+            "const": "invalid_request",
+            "x-status": 422,
+            "description": "Fix the part `param` names (null when the body is not a JSON object): a press takes only `input` and `max_price`, an upload only `field`, `filename` and `size`, the run list only `limit` and `starting_after`, and an `Idempotency-Key` is 1 to 255 visible ASCII characters."
+          },
+          {
+            "const": "invalid_input",
+            "x-status": 422,
+            "description": "Make the input match the Widget's `input_schema` (`GET /v1/widgets/{id}`), starting with the Field `param` names; the message lists every problem."
+          },
+          {
+            "const": "held_input_field_unknown",
+            "x-status": 422,
+            "description": "Name one of the Widget's file Fields; `param` is the name you sent."
+          },
+          {
+            "const": "held_input_type_refused",
+            "x-status": 422,
+            "description": "Send a file of a type the Field `param` names takes."
+          },
+          {
+            "const": "held_input_too_large",
+            "x-status": 422,
+            "description": "Send a smaller file for the Field `param` names."
+          },
+          {
+            "const": "held_input_not_yours",
+            "x-status": 422,
+            "description": "Send the id of your own upload for this Widget (`POST /v1/widgets/{id}/uploads`) in the Field `param` names."
+          },
+          {
+            "const": "held_input_missing",
+            "x-status": 422,
+            "description": "Upload the file again and send its new id in the Field `param` names."
+          },
+          {
+            "const": "held_input_too_many",
+            "x-status": 422,
+            "description": "Send fewer files in the Field `param` names."
+          },
+          {
+            "const": "input_unreachable",
+            "x-status": 422,
+            "description": "Send an `https` URL on a public address that answers with the file, or upload the file and send its id, in the Field `param` names."
+          },
+          {
+            "const": "idempotency_key_reused",
+            "x-status": 422,
+            "description": "Send a new `Idempotency-Key` for a new press; a retry must repeat the first request exactly."
+          },
+          {
+            "const": "idempotency_key_in_use",
+            "x-status": 409,
+            "description": "Wait the `Retry-After` seconds, then send the same request with the same `Idempotency-Key` again to get its run."
+          },
+          {
+            "const": "insufficient_funds",
+            "x-status": 402,
+            "description": "Top up your wallet by at least `shortfall` Ƀ, then press again."
+          },
+          {
+            "const": "spend_cap_reached",
+            "x-status": 400,
+            "description": "Raise or remove this key's Spend Cap in your Cave, or wait for the next calendar month (UTC); retrying sooner will not help."
+          },
+          {
+            "const": "price_above_max",
+            "x-status": 400,
+            "description": "Check the new `price` (`GET /v1/widgets/{id}`), then press again with a higher `max_price` or none."
+          },
+          {
+            "const": "rate_limited",
+            "x-status": 429,
+            "description": "Wait the seconds in the `Retry-After` header, then send the request again."
+          },
+          {
+            "const": "server_error",
+            "x-status": 500,
+            "description": "Try again; if it keeps happening, quote the `request_id` to support."
+          }
+        ]
+      }
+    }
+  }
+}

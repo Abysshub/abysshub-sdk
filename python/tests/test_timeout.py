@@ -33,6 +33,7 @@ def test_the_clients_timeout_applies_to_every_call() -> None:
                 abyss.run(WIDGET, INPUT)
         assert raised.value.code == "timeout"
         assert raised.value.run is not None and raised.value.run.id == ID
+        assert raised.value.run_id == ID
 
     against(work)
 
@@ -62,5 +63,6 @@ def test_async_the_clients_timeout_applies_and_a_calls_overrides_it(client: floa
         assert raised.value.code == "timeout"
         error_run = raised.value.run
         assert isinstance(error_run, AsyncRun) and error_run.id == ID and error_run.status == "queued"
+        assert raised.value.run_id == ID
 
     against(lambda base: asyncio.run(run(base)))

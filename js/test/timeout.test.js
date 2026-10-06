@@ -5,16 +5,18 @@ import { timeoutOnceHeld } from "./caller.js";
 import { loadExchanges, replay } from "./fake-server.js";
 
 const KEY = "abyss_sk_fake_for_tests";
-const recording = (await loadExchanges()).find(({ name }) => name === "timeout-reattach.json");
+const recordings = await loadExchanges();
+const recording = recordings.find(({ name }) => name === "timeout-reattach.json");
+const pressHold = recordings.find(({ name }) => name === "timeout-press-hold.json");
 const { widget, input } = recording.call;
 const { id } = recording.outcome.error.run;
 
-async function against(work, { served = recording.exchanges.length } = {}) {
-  const server = await replay(recording, { key: KEY });
+async function against(work, { served = recording.exchanges.length, from = recording } = {}) {
+  const server = await replay(from, { key: KEY });
   try {
     await work(server.base, server);
     assert.deepEqual(server.problems, []);
-    assert.equal(recording.exchanges.length - server.remaining(), served, "the requests sent");
+    assert.equal(from.exchanges.length - server.remaining(), served, "the requests sent");
   } finally {
     await server.close();
   }
@@ -30,6 +32,20 @@ test("an aborted signal stops the waiting, raising timeout with the run as last 
     const abyss = new Abyss({ apiKey: KEY, baseURL: base });
     await assert.rejects(abyss.run(widget, input, { signal: controller.signal }), isTimeout(id));
   }));
+
+test("an aborted signal during the press's first hold raises timeout with the run's id, and sends nothing more", () =>
+  against(
+    async (base, server) => {
+      const controller = new AbortController();
+      server.held.then(() => controller.abort());
+      const abyss = new Abyss({ apiKey: KEY, baseURL: base });
+      const error = await abyss.run(widget, input, { signal: controller.signal }).catch((raised) => raised);
+      assert.ok(isTimeout(null)(error), `expected a timeout, got ${error}`);
+      assert.equal(error.run_id, pressHold.outcome.error.run_id);
+      assert.equal(error.request_id, pressHold.outcome.error.request_id);
+    },
+    { from: pressHold, served: 1 },
+  ));
 
 test("a signal aborted before the call sends nothing", () =>
   against(

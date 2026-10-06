@@ -66,6 +66,7 @@
     "error": {
       "code": "connection_error",
       "request_id": null,
+      "run_id": null,
       "run": null
     }
   }

@@ -1,0 +1,69 @@
+{
+  "description": "A network cut ends the press's hold after a few spaces, with no body, and the re-attach through Location holds past the caller's timeout: the library raises timeout with no run, since no run body ever arrived, but with the run's id from the press's Location and the re-attach's Request-Id. The run goes on.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    },
+    "options": {
+      "timeout": 0.3
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_4Ct7Rk2Wm9Hx5Ln3Qv8Pd6Fs",
+          "Request-Id": "req_C1u2T3p4R5e6S7s8H9o0L1d2"
+        },
+        "chunks": [
+          " ",
+          " ",
+          " "
+        ],
+        "cut": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_4Ct7Rk2Wm9Hx5Ln3Qv8Pd6Fs?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_C1u2T3r4E5a6T7t8A9c0H1d2"
+        },
+        "chunks": [
+          " "
+        ],
+        "hold": true
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "code": "timeout",
+      "request_id": "req_C1u2T3r4E5a6T7t8A9c0H1d2",
+      "run_id": "run_4Ct7Rk2Wm9Hx5Ln3Qv8Pd6Fs",
+      "run": null
+    }
+  }
+}

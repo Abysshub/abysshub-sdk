@@ -1,0 +1,48 @@
+{
+  "description": "The press holds, silent after its first space, past the caller's timeout, so no run body arrives: the library stops waiting and raises timeout with no run, but with the run's id from the press's Location and the press's Request-Id, which arrived at once. It sends nothing after the press. The run goes on.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    },
+    "options": {
+      "timeout": 0.3
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_8Hp1Rs3Ql5Dx7Fw9Gv2Jt4Nk",
+          "Request-Id": "req_H1o2L3d4P5r6E7s8S9t0O1p2"
+        },
+        "chunks": [
+          " "
+        ],
+        "hold": true
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "code": "timeout",
+      "request_id": "req_H1o2L3d4P5r6E7s8S9t0O1p2",
+      "run_id": "run_8Hp1Rs3Ql5Dx7Fw9Gv2Jt4Nk",
+      "run": null
+    }
+  }
+}

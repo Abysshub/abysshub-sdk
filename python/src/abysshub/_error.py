@@ -19,6 +19,10 @@ class AbyssError(Exception):
     param: str | None
     doc_url: str | None
     request_id: str | None
+    run_id: str | None
+    """The id of the run the call started or read, once the call has learned it from a
+    ``Location`` header or a run body; else None. A ``timeout`` carries it even when no
+    run body has arrived, so ``runs.get(run_id, wait=True)`` finds the run again."""
     shortfall: float | None
     """With ``insufficient_funds``: how much Byssium the wallet is short; else None."""
     price: float | None
@@ -35,6 +39,7 @@ class AbyssError(Exception):
         param: str | None = None,
         doc_url: str | None = None,
         request_id: str | None = None,
+        run_id: str | None = None,
         shortfall: float | None = None,
         price: float | None = None,
         run: Run | AsyncRun | None = None,
@@ -46,6 +51,7 @@ class AbyssError(Exception):
         self.param = param
         self.doc_url = doc_url
         self.request_id = request_id
+        self.run_id = run_id
         self.shortfall = shortfall
         self.price = price
         self.run = run

@@ -53,20 +53,14 @@ def test_there_is_no_timeout_by_default() -> None:
     assert AsyncAbyss(api_key=KEY).timeout is None
 
 
-def test_async_the_clients_timeout_applies_and_a_calls_overrides_it() -> None:
-    async def run(base: str, client: float, call: float | None) -> AbyssError:
+@pytest.mark.parametrize(("client", "call"), [(0.3, None), (3600, 0.3)])
+def test_async_the_clients_timeout_applies_and_a_calls_overrides_it(client: float, call: float | None) -> None:
+    async def run(base: str) -> None:
         async with AsyncAbyss(api_key=KEY, base_url=base, timeout=client) as abyss:
             with pytest.raises(AbyssError) as raised:
                 await abyss.run(WIDGET, INPUT, timeout=call)
-        return raised.value
+        assert raised.value.code == "timeout"
+        error_run = raised.value.run
+        assert isinstance(error_run, AsyncRun) and error_run.id == ID and error_run.status == "queued"
 
-    for client, call in ((0.3, None), (3600, 0.3)):
-        error = None
-
-        def work(base: str) -> None:
-            nonlocal error
-            error = asyncio.run(run(base, client, call))
-
-        against(work)
-        assert isinstance(error, AbyssError) and error.code == "timeout"
-        assert isinstance(error.run, AsyncRun) and error.run.id == ID and error.run.status == "queued"
+    against(lambda base: asyncio.run(run(base)))

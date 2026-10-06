@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Generic, Literal, TypeVar
 
 from ._error import AbyssError
 
@@ -13,6 +13,9 @@ Download = Callable[[str], tuple[int, bytes]]
 
 Reread = Callable[[str], dict[str, Any]]
 """Reads a run again with ``GET /v1/runs/{id}``."""
+
+AsyncDownload = Callable[[str], Awaitable[tuple[int, bytes]]]
+AsyncReread = Callable[[str], Awaitable[dict[str, Any]]]
 
 RunStatus = Literal["queued", "running", "succeeded", "failed"]
 """A run's place: ``succeeded`` and ``failed`` are final."""
@@ -27,62 +30,78 @@ class RunError:
 
 
 @dataclass
-class RunFile:
-    """One file a run wrote. Its ``url`` is signed fresh on every read of the run, and expires."""
-
+class _RunFileFields:
     path: str
     size: int
     content_type: str
     url: str
+
+
+@dataclass
+class RunFile(_RunFileFields):
+    """One file a run wrote. Its ``url`` is signed fresh on every read of the run, and expires."""
+
     _download: Download | None = field(default=None, init=False, repr=False, compare=False)
     _refresh: Callable[[], None] | None = field(default=None, init=False, repr=False, compare=False)
 
     def read(self) -> bytes:
         """Downloads the file. An expired ``url`` is refreshed once, by reading the run again."""
         if self._download is None:
-            raise AbyssError("unexpected_response", f"The output file {self.path} has no client to download it.")
+            raise _no_client(self.path)
         status, content = self._download(self.url)
         if status == 403 and self._refresh is not None:
             self._refresh()
             status, content = self._download(self.url)
-        if not 200 <= status < 300:
-            raise AbyssError(
-                "unexpected_response",
-                f"The download of {self.path} answered {status}.",
-                status=status,
-            )
-        return content
+        return _downloaded(self.path, status, content)
 
     def save(self, path: str | os.PathLike[str]) -> Path:
         """Downloads the file to ``path``, making its folders, and returns ``path``."""
-        target = Path(path)
-        content = self.read()
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(content)
-        return target
+        return _write(Path(path), self.read())
 
 
 @dataclass
-class Run:
-    """A run, with `/v1`'s names."""
+class AsyncRunFile(_RunFileFields):
+    """``RunFile`` from ``AsyncAbyss``: ``read()`` and ``save()`` are awaited."""
 
+    _download: AsyncDownload | None = field(default=None, init=False, repr=False, compare=False)
+    _refresh: Callable[[], Awaitable[None]] | None = field(default=None, init=False, repr=False, compare=False)
+
+    async def read(self) -> bytes:
+        """Downloads the file. An expired ``url`` is refreshed once, by reading the run again."""
+        if self._download is None:
+            raise _no_client(self.path)
+        status, content = await self._download(self.url)
+        if status == 403 and self._refresh is not None:
+            await self._refresh()
+            status, content = await self._download(self.url)
+        return _downloaded(self.path, status, content)
+
+    async def save(self, path: str | os.PathLike[str]) -> Path:
+        """Downloads the file to ``path``, making its folders, and returns ``path``."""
+        return _write(Path(path), await self.read())
+
+
+F = TypeVar("F", RunFile, AsyncRunFile)
+
+
+@dataclass
+class _RunFields(Generic[F]):
     id: str
     widget: str
     status: RunStatus
     price: float
     result: Any
-    output_files: list[RunFile]
+    output_files: list[F]
     error: RunError | None
     created_at: str
     started_at: str | None
     ended_at: str | None
-    _reread: Reread | None = field(default=None, init=False, repr=False, compare=False)
 
-    def save(self, dir: str | os.PathLike[str]) -> list[Path]:
-        """Saves every output file under ``dir``, at its ``path``, and returns the paths it wrote."""
+    def _targets(self, dir: str | os.PathLike[str]) -> list[tuple[F, Path]]:
+        """Each output file with the path it is saved at under ``dir``, refusing one that leaves it."""
         folder = Path(dir)
         root = folder.resolve()
-        saved = []
+        targets = []
         for output in self.output_files:
             target = folder / output.path
             resolved = target.resolve()
@@ -91,40 +110,105 @@ class Run:
                     "unexpected_response",
                     f"The output file {output.path} would be saved outside {folder}.",
                 )
-            saved.append(output.save(target))
-        return saved
+            targets.append((output, target))
+        return targets
 
-    def _refresh_urls(self) -> None:
-        """Reads the run again and gives every output file its freshly signed ``url``."""
-        if self._reread is None:
-            return
-        fresh = {f.get("path"): f.get("url") for f in self._reread(self.id).get("output_files") or []}
+    def _refreshed(self, data: dict[str, Any]) -> None:
+        """Gives every output file its freshly signed ``url`` from the run read again as ``data``."""
+        fresh = {f.get("path"): f.get("url") for f in data.get("output_files") or []}
         for output in self.output_files:
             url = fresh.get(output.path)
             if isinstance(url, str):
                 output.url = url
 
 
+@dataclass
+class Run(_RunFields[RunFile]):
+    """A run, with `/v1`'s names."""
+
+    _reread: Reread | None = field(default=None, init=False, repr=False, compare=False)
+
+    def save(self, dir: str | os.PathLike[str]) -> list[Path]:
+        """Saves every output file under ``dir``, at its ``path``, and returns the paths it wrote."""
+        return [output.save(target) for output, target in self._targets(dir)]
+
+    def _refresh_urls(self) -> None:
+        """Reads the run again and gives every output file its freshly signed ``url``."""
+        if self._reread is not None:
+            self._refreshed(self._reread(self.id))
+
+
+@dataclass
+class AsyncRun(_RunFields[AsyncRunFile]):
+    """``Run`` from ``AsyncAbyss``: ``save()`` is awaited."""
+
+    _reread: AsyncReread | None = field(default=None, init=False, repr=False, compare=False)
+
+    async def save(self, dir: str | os.PathLike[str]) -> list[Path]:
+        """Saves every output file under ``dir``, at its ``path``, and returns the paths it wrote."""
+        return [await output.save(target) for output, target in self._targets(dir)]
+
+    async def _refresh_urls(self) -> None:
+        """Reads the run again and gives every output file its freshly signed ``url``."""
+        if self._reread is not None:
+            self._refreshed(await self._reread(self.id))
+
+
 def parse_run(data: dict[str, Any], reread: Reread | None = None, download: Download | None = None) -> Run:
     """The run `/v1` sent as ``data``. With ``reread`` and ``download``, its output files can be read."""
-    error = data.get("error")
-    run = Run(
-        id=data["id"],
-        widget=data.get("widget", ""),
-        status=data["status"],
-        price=data.get("price", 0),
-        result=data.get("result"),
-        output_files=[
-            RunFile(path=f["path"], size=f["size"], content_type=f["content_type"], url=f["url"])
-            for f in data.get("output_files") or []
-        ],
-        error=RunError(code=error["code"], message=error["message"]) if isinstance(error, dict) else None,
-        created_at=data.get("created_at", ""),
-        started_at=data.get("started_at"),
-        ended_at=data.get("ended_at"),
-    )
+    run = Run(**_fields(data), output_files=[RunFile(**f) for f in _files(data)])
     run._reread = reread
     for output in run.output_files:
         output._download = download
         output._refresh = run._refresh_urls
     return run
+
+
+def parse_async_run(
+    data: dict[str, Any], reread: AsyncReread | None = None, download: AsyncDownload | None = None
+) -> AsyncRun:
+    """``parse_run()`` for ``AsyncAbyss``."""
+    run = AsyncRun(**_fields(data), output_files=[AsyncRunFile(**f) for f in _files(data)])
+    run._reread = reread
+    for output in run.output_files:
+        output._download = download
+        output._refresh = run._refresh_urls
+    return run
+
+
+def _fields(data: dict[str, Any]) -> dict[str, Any]:
+    error = data.get("error")
+    return {
+        "id": data["id"],
+        "widget": data.get("widget", ""),
+        "status": data["status"],
+        "price": data.get("price", 0),
+        "result": data.get("result"),
+        "error": RunError(code=error["code"], message=error["message"]) if isinstance(error, dict) else None,
+        "created_at": data.get("created_at", ""),
+        "started_at": data.get("started_at"),
+        "ended_at": data.get("ended_at"),
+    }
+
+
+def _files(data: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {"path": f["path"], "size": f["size"], "content_type": f["content_type"], "url": f["url"]}
+        for f in data.get("output_files") or []
+    ]
+
+
+def _no_client(path: str) -> AbyssError:
+    return AbyssError("unexpected_response", f"The output file {path} has no client to download it.")
+
+
+def _downloaded(path: str, status: int, content: bytes) -> bytes:
+    if not 200 <= status < 300:
+        raise AbyssError("unexpected_response", f"The download of {path} answered {status}.", status=status)
+    return content
+
+
+def _write(target: Path, content: bytes) -> Path:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
+    return target

@@ -56,3 +56,27 @@ def request(
         except httpx.TransportError:
             return Answer(response.status_code, response.headers, None)
     return Answer(response.status_code, response.headers, b"".join(chunks).decode("utf-8", errors="replace"))
+
+
+async def arequest(
+    client: httpx.AsyncClient,
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    content: bytes | None = None,
+    timeout: httpx.Timeout | None = None,
+    deadline: float | None = None,
+) -> Answer:
+    """``request()`` on httpx's async client."""
+    async with client.stream(
+        method, url, headers=headers, content=content, timeout=timeout or client.timeout
+    ) as response:
+        chunks = []
+        try:
+            async for chunk in response.aiter_bytes():
+                chunks.append(chunk)
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise Stopped
+        except httpx.TransportError:
+            return Answer(response.status_code, response.headers, None)
+    return Answer(response.status_code, response.headers, b"".join(chunks).decode("utf-8", errors="replace"))

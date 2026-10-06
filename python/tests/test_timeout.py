@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 
 import pytest
 from fake_server import Replay, load_exchanges
 
-from abysshub import Abyss, AbyssError
+from abysshub import Abyss, AbyssError, AsyncAbyss, AsyncRun
 
 KEY = "abyss_sk_fake_for_tests"
 RECORDING = load_exchanges("timeout-reattach.json")[0]
@@ -49,3 +50,17 @@ def test_a_calls_timeout_overrides_the_clients() -> None:
 
 def test_there_is_no_timeout_by_default() -> None:
     assert Abyss(api_key=KEY).timeout is None
+    assert AsyncAbyss(api_key=KEY).timeout is None
+
+
+@pytest.mark.parametrize(("client", "call"), [(0.3, None), (3600, 0.3)])
+def test_async_the_clients_timeout_applies_and_a_calls_overrides_it(client: float, call: float | None) -> None:
+    async def run(base: str) -> None:
+        async with AsyncAbyss(api_key=KEY, base_url=base, timeout=client) as abyss:
+            with pytest.raises(AbyssError) as raised:
+                await abyss.run(WIDGET, INPUT, timeout=call)
+        assert raised.value.code == "timeout"
+        error_run = raised.value.run
+        assert isinstance(error_run, AsyncRun) and error_run.id == ID and error_run.status == "queued"
+
+    against(lambda base: asyncio.run(run(base)))

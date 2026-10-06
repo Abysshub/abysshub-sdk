@@ -6,7 +6,7 @@ from importlib import metadata
 import pytest
 from fake_server import Replay, load_exchanges
 
-from abysshub import Abyss, AbyssError
+from abysshub import Abyss, AbyssError, AsyncAbyss
 
 
 @pytest.fixture(autouse=True)
@@ -37,6 +37,16 @@ def test_the_key_comes_from_abyss_api_key(monkeypatch: pytest.MonkeyPatch) -> No
 def test_no_key_raises_abyss_error() -> None:
     with pytest.raises(AbyssError) as raised:
         Abyss()
+    assert raised.value.code == "invalid_api_key"
+
+
+def test_async_abyss_takes_the_same_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ABYSS_API_KEY", "abyss_sk_dev_x")
+    abyss = AsyncAbyss(max_retries=0, timeout=5)
+    assert (abyss.base_url, abyss.max_retries, abyss.timeout) == ("https://api.dev.abysshub.com", 0, 5)
+    monkeypatch.delenv("ABYSS_API_KEY")
+    with pytest.raises(AbyssError) as raised:
+        AsyncAbyss()
     assert raised.value.code == "invalid_api_key"
 
 

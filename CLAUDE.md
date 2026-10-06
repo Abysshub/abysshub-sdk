@@ -61,7 +61,7 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 ## House rules
 
 - **JS has no dependencies.** Not one runtime `dependency` in `js/package.json`; dev tools only. It runs on Node 20+, Bun and Deno, and in a browser `new Abyss()` throws.
-- **Python has one dependency, `httpx`.** Python 3.10+, one sync client `Abyss` (`AsyncAbyss` is its own Slice). `python/pyproject.toml` declares a `dev` extra with the test tools.
+- **Python has one dependency, `httpx`.** Python 3.10+, a sync client `Abyss` and an async `AsyncAbyss` on httpx's async client, with the same methods and the same exchanges. `python/pyproject.toml` declares a `dev` extra with the test tools.
 - **Oldest supported versions first.** Code must run on Node 20 and Python 3.10. CI also runs newer versions, Bun and Deno.
 - **The tests:** `npm test` in `js/` and `pytest` in `python/`. `.github/workflows/ci.yml` runs both on every pull request, on the oldest and the newest versions. A change to `exchanges/` keeps both languages green.
 - **The packages started as placeholders that hold the published names.** Each one has a test of its dependency rule. Build on `js/package.json` and `python/pyproject.toml`: keep their `name`, their `version` of `0.0.0`, and `repository` (trusted publishing checks it).

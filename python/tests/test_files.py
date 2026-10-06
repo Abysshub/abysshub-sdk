@@ -2,6 +2,7 @@
 and each output file's save() and read()."""
 from __future__ import annotations
 
+import asyncio
 import copy
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -12,7 +13,7 @@ import pytest
 from caller import with_files
 from fake_server import Replay, load_exchanges
 
-from abysshub import Abyss, AbyssError, file
+from abysshub import Abyss, AbyssError, AsyncAbyss, file
 
 KEY = "abyss_sk_fake_for_tests"
 RECORDINGS = {recording["name"]: recording for recording in load_exchanges("files-*.json")}
@@ -22,15 +23,22 @@ CONTENT = UPLOAD["call"]["files"]["report.pdf"]
 
 
 @contextmanager
-def against(recording: dict[str, Any]) -> Iterator[tuple[Abyss, Path]]:
+def serving(recording: dict[str, Any]) -> Iterator[tuple[str, Path]]:
+    """The fake server's address and the recording's files, checking every request was sent as recorded."""
     server = Replay(recording, KEY)
     try:
-        with with_files(recording["call"].get("files") or {}) as dir, Abyss(api_key=KEY, base_url=server.base) as abyss:
-            yield abyss, dir
+        with with_files(recording["call"].get("files") or {}) as dir:
+            yield server.base, dir
         assert server.problems == []
         assert server.remaining() == 0, "every recorded request was sent"
     finally:
         server.close()
+
+
+@contextmanager
+def against(recording: dict[str, Any]) -> Iterator[tuple[Abyss, Path]]:
+    with serving(recording) as (base, dir), Abyss(api_key=KEY, base_url=base) as abyss:
+        yield abyss, dir
 
 
 SOURCES: dict[str, Callable[[Path], Any]] = {
@@ -115,3 +123,27 @@ def test_run_save_refuses_an_output_path_that_leaves_its_folder() -> None:
         run = abyss.run(EXPIRED["call"]["widget"], EXPIRED["call"]["input"])
         with pytest.raises(AbyssError):
             run.save(dir / "output")
+
+
+def test_async_an_open_file_uploads() -> None:
+    async def work(base: str, dir: Path) -> None:
+        async with AsyncAbyss(api_key=KEY, base_url=base) as abyss:
+            with open(dir / "report.pdf", "rb") as report:
+                assert (await abyss.run("widget_1660", {"report": report})).status == "succeeded"
+
+    with serving(UPLOAD) as (base, dir):
+        asyncio.run(work(base, dir))
+
+
+def test_async_each_output_file_has_save_and_read_refreshing_an_expired_url_once() -> None:
+    async def work(base: str, dir: Path) -> None:
+        async with AsyncAbyss(api_key=KEY, base_url=base) as abyss:
+            run = await abyss.run(EXPIRED["call"]["widget"], EXPIRED["call"]["input"])
+            chart, output = run.output_files
+            path = dir / "deep" / "chart.png"
+            assert await chart.save(path) == path
+            assert path.read_text("utf-8") == EXPIRED["outcome"]["saved"]["charts/a.png"]
+            assert (await output.read()).decode("utf-8") == EXPIRED["outcome"]["saved"]["output.json"]
+
+    with serving(EXPIRED) as (base, dir):
+        asyncio.run(work(base, dir))

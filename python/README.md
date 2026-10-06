@@ -18,10 +18,11 @@ except AbyssError as error:
 
 `run()` presses the Widget and waits for the run to end, however long it takes, then returns the succeeded run. A refusal or a failed run raises `AbyssError`.
 
-It runs on Python 3.10+, with one dependency, `httpx`. The client is synchronous; from async code, run it in a thread:
+It runs on Python 3.10+, with one dependency, `httpx`. From async code, use `AsyncAbyss` (see [Async](#async)):
 
 ```python
-run = await asyncio.to_thread(abyss.run, "widget_131", {"amount": 250000})
+async with AsyncAbyss() as abyss:
+    run = await abyss.run("widget_131", {"amount": 250000})
 ```
 
 ## The client
@@ -115,7 +116,7 @@ A refusal, a failed run, a timeout and a lost connection all raise one class, `A
 | `param` | the Field, body key, query key or header at fault, else `None` |
 | `doc_url` | the code on the API access page, else `None` |
 | `request_id` | quote it to support, else `None` |
-| `run` | the run, for a failed run or a timeout, else `None` |
+| `run` | the run, for a failed run or a timeout, else `None`; an `AsyncRun` from `AsyncAbyss` |
 
 - **Refusals:** `invalid_api_key` (401), `not_found` (404), `invalid_request`, `invalid_input`, `held_input_*`, `input_unreachable` and `idempotency_key_reused` (422), `insufficient_funds` (402), `spend_cap_reached` and `price_above_max` (400), `idempotency_key_in_use` (409), `rate_limited` (429), `server_error` (500).
 - **A failed run:** `widget_fault`, `platform_fault` or `budget_exceeded`, with the run as `run`.
@@ -146,6 +147,24 @@ except AbyssError as error:
 ```
 
 It raises `AbyssError` with `code == "timeout"` and `run`, the run as last seen. During the press's first hold the run has not been seen yet, so `run` is `None`; to keep its `id` whatever happens, press with `runs.create()` and wait with `runs.get(id, wait=True, timeout=...)`.
+
+## Async
+
+`AsyncAbyss` is `Abyss` on httpx's async client. It takes the same options and has the same methods, each awaited; its retries, re-attaching and `timeout` behave the same.
+
+```python
+from abysshub import AsyncAbyss, file
+
+async with AsyncAbyss() as abyss:  # or abyss = AsyncAbyss(), then await abyss.close()
+    run = await abyss.run("widget_1660", {"report": file("report.pdf")})
+    paths = await run.save("output")
+    queued = await abyss.runs.create("widget_131", {"amount": 250000})
+    run = await abyss.runs.get(queued.id, wait=True)
+```
+
+- **Runs:** it returns an `AsyncRun`, with the same fields as `Run`. Its `save(dir)` and each of its `output_files`' `save(path)` and `read()` are awaited. `runs.list()` returns an `AsyncRunList`, and an `AbyssError` raised by `AsyncAbyss` carries an `AsyncRun` as `run`.
+- **Files** are uploaded as concurrent tasks, each read from disk in a thread.
+- **`timeout=`** stops the waiting, as with `Abyss`. Cancelling the task stops it too, and raises `CancelledError`, not `AbyssError`.
 
 ## Names
 

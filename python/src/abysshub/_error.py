@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ._run import Run
+    from ._run import AsyncRun, Run
 
 
 class AbyssError(Exception):
@@ -19,7 +19,8 @@ class AbyssError(Exception):
     param: str | None
     doc_url: str | None
     request_id: str | None
-    run: Run | None
+    run: Run | AsyncRun | None
+    """The run, for a failed run or a timeout: an ``AsyncRun`` from ``AsyncAbyss``."""
 
     def __init__(
         self,
@@ -30,7 +31,7 @@ class AbyssError(Exception):
         param: str | None = None,
         doc_url: str | None = None,
         request_id: str | None = None,
-        run: Run | None = None,
+        run: Run | AsyncRun | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code

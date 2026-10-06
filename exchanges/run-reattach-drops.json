@@ -1,0 +1,115 @@
+{
+  "description": "The network goes down during a hold: the hold is cut, and the re-attach through Location drops before any headers three times, which would use up a press's retries. Re-attaching has no limit and is not a retry, so the library keeps re-attaching until the network is back, and the fourth re-attach holds and returns the run.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_4Lw7Nq2Xc9Vb5Mz8Kd3Hf6Jt",
+          "Request-Id": "req_P3x7Lk2Qw9Zr5Ty8Vb4Nm6Hd"
+        },
+        "chunks": [
+          " ",
+          " ",
+          " "
+        ],
+        "cut": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_4Lw7Nq2Xc9Vb5Mz8Kd3Hf6Jt?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "drop": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_4Lw7Nq2Xc9Vb5Mz8Kd3Hf6Jt?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "drop": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_4Lw7Nq2Xc9Vb5Mz8Kd3Hf6Jt?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "drop": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_4Lw7Nq2Xc9Vb5Mz8Kd3Hf6Jt?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_G5s8Dk1Rt4Yw7Qp0Lz3Xc6Vb"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_4Lw7Nq2Xc9Vb5Mz8Kd3Hf6Jt",
+          "widget": "widget_131",
+          "status": "succeeded",
+          "price": 0.5,
+          "result": {
+            "approved": true,
+            "rate": 0.042
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-06T14:31:08Z",
+          "started_at": "2026-10-06T14:31:09Z",
+          "ended_at": "2026-10-06T14:39:10Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_4Lw7Nq2Xc9Vb5Mz8Kd3Hf6Jt",
+      "status": "succeeded"
+    }
+  }
+}

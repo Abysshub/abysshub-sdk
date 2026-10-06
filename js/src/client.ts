@@ -15,6 +15,9 @@ const REATTACH_PAUSE_MS = 1_000;
 /** The first pause before a retry after a drop or a 5xx; it doubles with each retry. */
 const RETRY_PAUSE_MS = 500;
 
+/** The longest pause between two tries, which only re-attaching, with no limit, reaches. */
+const RETRY_PAUSE_CEILING_MS = 10_000;
+
 const BROWSER_REFUSAL = "An Abyss API key is a server-side secret. Call the API from your server.";
 
 const USER_AGENT = `abysshub-js/${VERSION} (${runtime()})`;
@@ -270,12 +273,16 @@ export class Abyss {
     return expect(await this.#send(call, "GET", url), is, message);
   }
 
-  /** Reads `url` until `done`. Re-attaching has no limit and is not a retry. */
+  /**
+   * Reads `url` until `done`. Re-attaching has no limit and is not a retry: a re-attach
+   * that drops, or meets a `429`, `409` or `5xx`, is tried again until the network is
+   * back, and only the call's `timeout` or `signal` stops it.
+   */
   async #hold<R extends Reply>(call: Call, url: string, done: (reply: Reply) => reply is R): Promise<R> {
-    let reply = await this.#send(call, "GET", url);
+    let reply = await this.#send(call, "GET", url, {}, undefined, Infinity);
     while (!done(reply)) {
       await sleep(REATTACH_PAUSE_MS, call.signal);
-      reply = await this.#send(call, "GET", url);
+      reply = await this.#send(call, "GET", url, {}, undefined, Infinity);
     }
     return reply;
   }
@@ -304,9 +311,16 @@ export class Abyss {
 
   /**
    * Sends one request to `/v1`. A drop before any headers, a `429`, a `409` and a `5xx`
-   * are sent again, at most `maxRetries` times; every other refusal raises at once.
+   * are sent again, at most `retries` times; every other refusal raises at once.
    */
-  async #send(call: Call, method: string, url: string, headers: Record<string, string> = {}, body?: string): Promise<Reply> {
+  async #send(
+    call: Call,
+    method: string,
+    url: string,
+    headers: Record<string, string> = {},
+    body?: string,
+    retries: number = this.maxRetries,
+  ): Promise<Reply> {
     const init: RequestInit = {
       method,
       headers: { Authorization: `Bearer ${this.#apiKey}`, Accept: "application/json", "User-Agent": USER_AGENT, ...headers },
@@ -319,7 +333,7 @@ export class Abyss {
         answer = await request(url, init);
       } catch (error) {
         if (call.signal?.aborted) throw error;
-        if (attempt >= this.maxRetries) {
+        if (attempt >= retries) {
           throw new AbyssError({
             code: "connection_error",
             message: "The connection dropped, or timed out, before the API answered.",
@@ -337,7 +351,7 @@ export class Abyss {
         return { body: parsed, run, cut: answer.text === null, location: answer.headers.get("location"), requestId };
       }
       const pause = retryPause(answer, attempt);
-      if (pause === null || attempt >= this.maxRetries) throw refusal(answer.status, parsed, requestId);
+      if (pause === null || attempt >= retries) throw refusal(answer.status, parsed, requestId);
       await sleep(pause, call.signal);
     }
   }
@@ -354,7 +368,7 @@ function retryPause(answer: Answer, attempt: number): number | null {
 }
 
 function backoff(attempt: number): number {
-  return RETRY_PAUSE_MS * 2 ** attempt;
+  return Math.min(RETRY_PAUSE_MS * 2 ** attempt, RETRY_PAUSE_CEILING_MS);
 }
 
 /** The reply's body when it is what the route answers, else `unexpected_response`. */

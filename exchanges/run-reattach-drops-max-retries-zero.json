@@ -1,0 +1,106 @@
+{
+  "description": "With max_retries 0 the press is never sent twice, but re-attaching is not a retry: the hold is cut, the re-attach drops twice, and the third re-attach holds and returns the run.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    },
+    "client": {
+      "max_retries": 0
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_8Tr3Gm6Yp1Kw4Nx7Bc2Qs5Zf",
+          "Request-Id": "req_W2n6Jx9Kc4Ld8Rv1Tq5Hm3Yb"
+        },
+        "chunks": [
+          " ",
+          " ",
+          " "
+        ],
+        "cut": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_8Tr3Gm6Yp1Kw4Nx7Bc2Qs5Zf?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "drop": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_8Tr3Gm6Yp1Kw4Nx7Bc2Qs5Zf?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "drop": true
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/runs/run_8Tr3Gm6Yp1Kw4Nx7Bc2Qs5Zf?wait=true",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_C7k1Fz4Pw8Gs2Nd6Xr9Lt3Qm"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_8Tr3Gm6Yp1Kw4Nx7Bc2Qs5Zf",
+          "widget": "widget_131",
+          "status": "succeeded",
+          "price": 0.5,
+          "result": {
+            "approved": true,
+            "rate": 0.042
+          },
+          "output_files": [],
+          "error": null,
+          "created_at": "2026-10-06T14:31:08Z",
+          "started_at": "2026-10-06T14:31:09Z",
+          "ended_at": "2026-10-06T14:39:10Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_8Tr3Gm6Yp1Kw4Nx7Bc2Qs5Zf",
+      "status": "succeeded"
+    }
+  }
+}

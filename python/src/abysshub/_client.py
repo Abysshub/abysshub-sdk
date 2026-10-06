@@ -31,6 +31,9 @@ REATTACH_PAUSE = 1.0
 RETRY_PAUSE = 0.5
 """Seconds before the first retry after a drop or a 5xx; the pause doubles with each retry."""
 
+RETRY_PAUSE_CEILING = 10.0
+"""The longest pause between two tries, in seconds, which only re-attaching, with no limit, reaches."""
+
 
 def _version() -> str:
     try:
@@ -348,11 +351,13 @@ class Abyss:
         return _expect(self._send(call, "GET", url), is_, message)
 
     def _hold(self, call: _Call, url: str, done: Callable[[_Reply], bool]) -> _Reply:
-        """Reads ``url`` until ``done``. Re-attaching has no limit and is not a retry."""
-        reply = self._send(call, "GET", url)
+        """Reads ``url`` until ``done``. Re-attaching has no limit and is not a retry: a
+        re-attach that drops, or meets a 429, 409 or 5xx, is tried again until the network
+        is back, and only the call's ``timeout`` stops it."""
+        reply = self._send(call, "GET", url, retries=math.inf)
         while not done(reply):
             self._sleep(call, REATTACH_PAUSE)
-            reply = self._send(call, "GET", url)
+            reply = self._send(call, "GET", url, retries=math.inf)
         return reply
 
     def _widget_url(self, widget: str) -> str:
@@ -375,9 +380,12 @@ class Abyss:
         url: str,
         headers: dict[str, str] | None = None,
         content: bytes | None = None,
+        retries: float | None = None,
     ) -> _Reply:
         """Sends one request to `/v1`. A drop before any headers, a 429, a 409 and a 5xx
-        are sent again, at most ``max_retries`` times; every other refusal raises at once."""
+        are sent again, at most ``retries`` times (``max_retries`` when left out); every
+        other refusal raises at once."""
+        limit = self.max_retries if retries is None else retries
         sent_headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Accept": "application/json",
@@ -393,7 +401,7 @@ class Abyss:
                 raise self._timed_out(call) from None
             except httpx.TransportError as error:
                 self._check(call)
-                if attempt >= self.max_retries:
+                if attempt >= limit:
                     raise AbyssError(
                         "connection_error",
                         "The connection dropped, or timed out, before the API answered.",
@@ -409,7 +417,7 @@ class Abyss:
                     call.seen = run
                 return _Reply(parsed, run, answer.text is None, answer.headers.get("location"), request_id)
             pause = _retry_pause(answer, attempt)
-            if pause is None or attempt >= self.max_retries:
+            if pause is None or attempt >= limit:
                 raise _refusal(answer.status, parsed, request_id)
             self._sleep(call, pause)
             attempt += 1
@@ -427,7 +435,9 @@ def _retry_pause(answer: Answer, attempt: int) -> float | None:
 
 
 def _backoff(attempt: int) -> float:
-    return RETRY_PAUSE * 2**attempt
+    # The exponent stops growing once the ceiling is reached, so an unlimited re-attach
+    # never makes a float too large.
+    return min(RETRY_PAUSE * 2 ** min(attempt, 16), RETRY_PAUSE_CEILING)
 
 
 def _expect(reply: _Reply, is_: Callable[[Any], bool], message: str) -> Any:

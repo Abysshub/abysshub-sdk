@@ -48,7 +48,7 @@ const run = await abyss.run(widget, input, { maxPrice, idempotencyKey, timeout, 
 - **`maxPrice`:** the most the run may cost, in Byssium. A higher price is refused with `price_above_max`, and nothing is charged.
 - **`idempotencyKey`:** each call presses with a fresh UUID `Idempotency-Key` unless you give one. Retries send the same one, so a run is never made or charged twice.
 
-The press holds until the run ends. When the hold ends early (a deploy cuts it, the API's holds are all taken, or an hour passes), `run()` re-attaches with `GET <Location>?wait=true` until the run ends. Re-attaching has no limit and is not a retry. Connecting has 10 s, and 30 s of silence counts as a cut.
+The press holds until the run ends. When the hold ends early (a deploy cuts it, the network goes down, the API's holds are all taken, or an hour passes), `run()` re-attaches with `GET <Location>?wait=true` until the run ends. Re-attaching has no limit and is not a retry. Connecting has 10 s, and 30 s of silence counts as a cut.
 
 A **run** has `/v1`'s fields: `id`, `widget`, `status` (`queued`, `running`, `succeeded` or `failed`), `price`, `result`, `output_files`, `error`, `created_at`, `started_at` and `ended_at`.
 
@@ -123,7 +123,9 @@ A request is sent again, at most `maxRetries` times (2 by default), only after:
 - **`429 rate_limited` and `409 idempotency_key_in_use`:** after the `Retry-After` seconds;
 - **a `5xx`:** a short backoff (0.5 s, then 1 s).
 
-When the last try fails too, it raises. Every other refusal raises at once, and re-attaching never counts as a retry.
+When the last try fails too, it raises. Every other refusal raises at once.
+
+**Re-attaching never counts as a retry.** A re-attach that drops, or meets a `429`, `409` or `5xx`, is tried again with no limit until the network is back, pausing 0.5 s and doubling to at most 10 s (or the `Retry-After` seconds). Only `timeout` and `signal` stop it.
 
 ## Timeouts
 

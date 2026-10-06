@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from abysshub import Abyss, file
+from abysshub import Abyss, AsyncAbyss, file
 
 
 def caller_input(input: dict[str, Any], dir: Path, files: dict[str, str]) -> dict[str, Any]:
@@ -52,4 +52,25 @@ def perform(abyss: Abyss, call: dict[str, Any], input: dict[str, Any]) -> Any:
         return abyss.uploads.create(call["widget"], **options)
     if method == "key":
         return abyss.key(**options)
+    raise AssertionError(f"no such method: {method}")
+
+
+async def perform_async(abyss: AsyncAbyss, call: dict[str, Any], input: dict[str, Any]) -> Any:
+    """``perform()`` through ``AsyncAbyss``."""
+    method = call.get("method", "run")
+    options = call.get("options") or {}
+    if method == "run":
+        return await abyss.run(call["widget"], input, **options)
+    if method == "runs.create":
+        return await abyss.runs.create(call["widget"], input, **options)
+    if method == "runs.get":
+        return await abyss.runs.get(call["id"], **options)
+    if method == "runs.list":
+        return await abyss.runs.list(**options)
+    if method == "widgets.get":
+        return await abyss.widgets.get(call["widget"], **options)
+    if method == "uploads.create":
+        return await abyss.uploads.create(call["widget"], **options)
+    if method == "key":
+        return await abyss.key(**options)
     raise AssertionError(f"no such method: {method}")

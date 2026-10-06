@@ -54,7 +54,11 @@ class Replay:
                 pass
 
             def do_GET(self) -> None:
-                replay._serve(self)
+                try:
+                    replay._serve(self)
+                except (BrokenPipeError, ConnectionResetError):
+                    # The caller stopped listening, as a timeout does during a hold.
+                    self.close_connection = True
 
             do_POST = do_GET
 

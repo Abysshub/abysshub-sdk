@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from ._run import Run
+from ._run import AsyncRun, Run
 
 
 @dataclass
@@ -11,6 +11,15 @@ class RunList:
     """A page of runs, newest first, as ``GET /v1/runs`` sends it."""
 
     data: list[Run]
+    has_more: bool
+    """Whether a page ``starting_after`` the last run here would find more."""
+
+
+@dataclass
+class AsyncRunList:
+    """``RunList`` from ``AsyncAbyss``: each run is an ``AsyncRun``."""
+
+    data: list[AsyncRun]
     has_more: bool
     """Whether a page ``starting_after`` the last run here would find more."""
 

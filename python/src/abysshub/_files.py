@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import IO, Any, Union
@@ -35,6 +36,10 @@ def file(source: str | FileData, *, filename: str | None = None) -> InputFile:
 Uploader = Callable[[str, str, bytes], str]
 """Uploads one file for a Field, by its name and content, and answers the upload's id."""
 
+AsyncUploader = Callable[[str, str, bytes], Awaitable[str]]
+
+_Job = tuple[Callable[[str], None], str, "InputFile | FileData"]
+
 
 def upload_files(input: Mapping[str, Any], upload: Uploader) -> dict[str, Any]:
     """The input with every file value uploaded, in parallel, and replaced by its upload's id.
@@ -42,15 +47,7 @@ def upload_files(input: Mapping[str, Any], upload: Uploader) -> dict[str, Any]:
     Strings pass through as an ``https`` URL or an upload id, and a list may mix all
     kinds. The caller's input is never changed.
     """
-    uploaded = dict(input)
-    jobs: list[tuple[Callable[[str], None], str, InputFile | FileData]] = []
-    for field, value in input.items():
-        if is_file(value):
-            jobs.append((_setter(uploaded, field), field, value))
-        elif isinstance(value, list) and any(is_file(item) for item in value):
-            items = list(value)
-            uploaded[field] = items
-            jobs.extend((_setter(items, index), field, item) for index, item in enumerate(value) if is_file(item))
+    uploaded, jobs = _plan(input)
     if not jobs:
         return uploaded
 
@@ -63,6 +60,37 @@ def upload_files(input: Mapping[str, Any], upload: Uploader) -> dict[str, Any]:
     for (put, _, _), future in zip(jobs, futures):
         put(future.result())
     return uploaded
+
+
+async def upload_files_async(input: Mapping[str, Any], upload: AsyncUploader) -> dict[str, Any]:
+    """``upload_files()`` for ``AsyncAbyss``: the uploads run as tasks, at most
+    ``MAX_PARALLEL_UPLOADS`` at a time, and each file is read in a thread."""
+    uploaded, jobs = _plan(input)
+    slots = asyncio.Semaphore(MAX_PARALLEL_UPLOADS)
+
+    async def upload_one(field: str, value: InputFile | FileData) -> str:
+        async with slots:
+            filename, data = await asyncio.to_thread(_load, value, field)
+            return await upload(field, filename, data)
+
+    ids = await asyncio.gather(*(upload_one(field, value) for _, field, value in jobs))
+    for (put, _, _), upload_id in zip(jobs, ids):
+        put(upload_id)
+    return uploaded
+
+
+def _plan(input: Mapping[str, Any]) -> tuple[dict[str, Any], list[_Job]]:
+    """A copy of the input, and for each file value in it, where its upload's id goes."""
+    uploaded = dict(input)
+    jobs: list[_Job] = []
+    for field, value in input.items():
+        if is_file(value):
+            jobs.append((_setter(uploaded, field), field, value))
+        elif isinstance(value, list) and any(is_file(item) for item in value):
+            items = list(value)
+            uploaded[field] = items
+            jobs.extend((_setter(items, index), field, item) for index, item in enumerate(value) if is_file(item))
+    return uploaded, jobs
 
 
 def is_file(value: Any) -> bool:

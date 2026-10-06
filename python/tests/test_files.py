@@ -2,6 +2,7 @@
 and each output file's save() and read()."""
 from __future__ import annotations
 
+import asyncio
 import copy
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -12,7 +13,7 @@ import pytest
 from caller import with_files
 from fake_server import Replay, load_exchanges
 
-from abysshub import Abyss, AbyssError, file
+from abysshub import Abyss, AbyssError, AsyncAbyss, file
 
 KEY = "abyss_sk_fake_for_tests"
 RECORDINGS = {recording["name"]: recording for recording in load_exchanges("files-*.json")}
@@ -115,3 +116,31 @@ def test_run_save_refuses_an_output_path_that_leaves_its_folder() -> None:
         run = abyss.run(EXPIRED["call"]["widget"], EXPIRED["call"]["input"])
         with pytest.raises(AbyssError):
             run.save(dir / "output")
+
+
+def test_async_an_open_file_uploads_and_each_output_file_reads_refreshing_an_expired_url() -> None:
+    async def upload(base: str, dir: Path) -> str:
+        async with AsyncAbyss(api_key=KEY, base_url=base) as abyss:
+            with open(dir / "report.pdf", "rb") as report:
+                return (await abyss.run("widget_1660", {"report": report})).status
+
+    async def outputs(base: str, dir: Path) -> tuple[Path, bytes]:
+        async with AsyncAbyss(api_key=KEY, base_url=base) as abyss:
+            run = await abyss.run(EXPIRED["call"]["widget"], EXPIRED["call"]["input"])
+            chart, output = run.output_files
+            return await chart.save(dir / "deep" / "chart.png"), await output.read()
+
+    for recording in (UPLOAD, EXPIRED):
+        server = Replay(recording, KEY)
+        try:
+            with with_files(recording["call"].get("files") or {}) as dir:
+                if recording is UPLOAD:
+                    assert asyncio.run(upload(server.base, dir)) == "succeeded"
+                else:
+                    path, content = asyncio.run(outputs(server.base, dir))
+                    assert path.read_text("utf-8") == EXPIRED["outcome"]["saved"]["charts/a.png"]
+                    assert content.decode("utf-8") == EXPIRED["outcome"]["saved"]["output.json"]
+            assert server.problems == []
+            assert server.remaining() == 0, "every recorded request was sent"
+        finally:
+            server.close()

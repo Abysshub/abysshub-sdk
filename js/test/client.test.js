@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { afterEach, beforeEach, test } from "node:test";
 import { Abyss, AbyssError } from "../dist/index.js";
+import { loadExchanges, replay } from "./fake-server.js";
 
 const NAMES = ["ABYSS_API_KEY", "ABYSS_BASE_URL"];
 let saved;
@@ -75,5 +76,20 @@ test("every request sends the User-Agent", async () => {
   } finally {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("a refusal without shortfall or price carries null for both", async () => {
+  const recording = (await loadExchanges()).find(({ name }) => name === "run-refused-invalid-input.json");
+  const server = await replay(recording, { key: "abyss_sk_x" });
+  try {
+    const abyss = new Abyss({ apiKey: "abyss_sk_x", baseURL: server.base });
+    await assert.rejects(
+      abyss.run(recording.call.widget, recording.call.input),
+      (error) => error instanceof AbyssError && error.code === "invalid_input" && error.shortfall === null && error.price === null,
+    );
+    assert.deepEqual(server.problems, []);
+  } finally {
+    await server.close();
   }
 });

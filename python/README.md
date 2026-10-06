@@ -116,6 +116,8 @@ A refusal, a failed run, a timeout and a lost connection all raise one class, `A
 | `param` | the Field, body key, query key or header at fault, else `None` |
 | `doc_url` | the code on the API access page, else `None` |
 | `request_id` | quote it to support, else `None` |
+| `shortfall` | with `insufficient_funds`: how much Byssium the wallet is short, else `None` |
+| `price` | with `price_above_max`: what the run costs now, else `None` |
 | `run` | the run, for a failed run or a timeout, else `None`; an `AsyncRun` from `AsyncAbyss` |
 
 - **Refusals:** `invalid_api_key` (401), `not_found` (404), `invalid_request`, `invalid_input`, `held_input_*`, `input_unreachable` and `idempotency_key_reused` (422), `insufficient_funds` (402), `spend_cap_reached` and `price_above_max` (400), `idempotency_key_in_use` (409), `rate_limited` (429), `server_error` (500).

@@ -1,0 +1,51 @@
+{
+  "description": "The press is refused for a short wallet: it raises insufficient_funds with the shortfall, how much Byssium the wallet is short, and no run.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          }
+        }
+      },
+      "response": {
+        "status": 402,
+        "headers": {
+          "Request-Id": "req_K7j8H9g0F1d2S3a4P5o6I7u8"
+        },
+        "body": {
+          "error": {
+            "code": "insufficient_funds",
+            "message": "Your Available Byssium is 0.3 Ƀ short of this run's price. Top up your wallet, then press again.",
+            "doc_url": "https://abysshub.com/documentation/api#insufficient_funds",
+            "shortfall": 0.3
+          },
+          "request_id": "req_K7j8H9g0F1d2S3a4P5o6I7u8"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "code": "insufficient_funds",
+      "status": 402,
+      "shortfall": 0.3,
+      "price": null,
+      "request_id": "req_K7j8H9g0F1d2S3a4P5o6I7u8",
+      "run": null
+    }
+  }
+}

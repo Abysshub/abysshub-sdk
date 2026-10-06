@@ -19,6 +19,10 @@ class AbyssError(Exception):
     param: str | None
     doc_url: str | None
     request_id: str | None
+    shortfall: float | None
+    """With ``insufficient_funds``: how much Byssium the wallet is short; else None."""
+    price: float | None
+    """With ``price_above_max``: what the run costs now; else None."""
     run: Run | AsyncRun | None
     """The run, for a failed run or a timeout: an ``AsyncRun`` from ``AsyncAbyss``."""
 
@@ -31,6 +35,8 @@ class AbyssError(Exception):
         param: str | None = None,
         doc_url: str | None = None,
         request_id: str | None = None,
+        shortfall: float | None = None,
+        price: float | None = None,
         run: Run | AsyncRun | None = None,
     ) -> None:
         super().__init__(message)
@@ -40,6 +46,8 @@ class AbyssError(Exception):
         self.param = param
         self.doc_url = doc_url
         self.request_id = request_id
+        self.shortfall = shortfall
+        self.price = price
         self.run = run
 
     def __repr__(self) -> str:

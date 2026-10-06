@@ -1,8 +1,8 @@
 # abysshub
 
-The official Python library for the [Abyss](https://abysshub.com) API.
-
 Pre-release: the Abyss API opens soon.
+
+The official Python library for the [Abyss](https://abysshub.com) API.
 
 ```python
 from abysshub import Abyss, AbyssError

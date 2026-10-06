@@ -521,10 +521,10 @@ class Abyss(_Base[Run]):
 
 def _heard(call: _Call, headers: httpx.Headers) -> None:
     """Notes a response's headers as they arrive: its ``Request-Id``, and the run its ``Location`` names."""
-    call.request_id = headers.get("request-id") or call.request_id
-    location = RUN_LOCATION.search(headers.get("location") or "")
-    if location is not None:
-        call.run_id = location.group(1)
+    call.request_id = headers.get("request-id", call.request_id)
+    match = RUN_LOCATION.search(headers.get("location", ""))
+    if match is not None:
+        call.run_id = match.group(1)
 
 
 def _retry_pause(answer: Answer, attempt: int) -> float | None:

@@ -202,7 +202,7 @@ export class Abyss {
           }, timeout * 1_000);
     if (options.signal?.aborted) abort();
     options.signal?.addEventListener("abort", abort, { once: true });
-    const call: Call = { signal: stop.signal, seen: null, runId: null, requestId: null };
+    const call = newCall(stop.signal);
     try {
       return await work(call);
     } catch (error) {
@@ -305,7 +305,7 @@ export class Abyss {
   }
 
   #run(data: RunData): Run {
-    return new Run(data, () => this.#getRun({ signal: null, seen: null, runId: null, requestId: null }, data.id, false));
+    return new Run(data, () => this.#getRun(newCall(null), data.id, false));
   }
 
   #widgetURL(widget: string): string {
@@ -378,6 +378,11 @@ export class Abyss {
       await sleep(pause, call.signal);
     }
   }
+}
+
+/** A call's waiting before it has learned anything. */
+function newCall(signal: AbortSignal | null): Call {
+  return { signal, seen: null, runId: null, requestId: null };
 }
 
 /** Notes a response's headers as they arrive: its `Request-Id`, and the run its `Location` names. */

@@ -67,3 +67,17 @@ def test_every_request_sends_the_user_agent() -> None:
         assert server.problems == []
     finally:
         server.close()
+
+
+def test_a_refusal_without_shortfall_or_price_carries_none_for_both() -> None:
+    recording = load_exchanges("run-refused-invalid-input.json")[0]
+    server = Replay(recording, "abyss_sk_x")
+    try:
+        with Abyss(api_key="abyss_sk_x", base_url=server.base) as abyss, pytest.raises(AbyssError) as raised:
+            abyss.run(recording["call"]["widget"], recording["call"]["input"])
+        assert raised.value.code == "invalid_input"
+        assert raised.value.shortfall is None
+        assert raised.value.price is None
+        assert server.problems == []
+    finally:
+        server.close()

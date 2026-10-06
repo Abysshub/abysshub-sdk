@@ -1,0 +1,55 @@
+{
+  "description": "The price rose above the caller's max_price: the press raises price_above_max with the price the run costs now, and no run.",
+  "call": {
+    "widget": "widget_131",
+    "input": {
+      "amount": 250000
+    },
+    "options": {
+      "max_price": 3
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_131/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "amount": 250000
+          },
+          "max_price": 3
+        }
+      },
+      "response": {
+        "status": 400,
+        "headers": {
+          "Request-Id": "req_Z9x8C7v6B5n4M3l2K1j0H9g8"
+        },
+        "body": {
+          "error": {
+            "code": "price_above_max",
+            "message": "This run costs 3.1 Ƀ, more than the max_price you sent. Nothing was charged. Check the price (GET /v1/widgets/{id}), then press again with a higher max_price or none.",
+            "doc_url": "https://abysshub.com/documentation/api#price_above_max",
+            "price": 3.1
+          },
+          "request_id": "req_Z9x8C7v6B5n4M3l2K1j0H9g8"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "error": {
+      "code": "price_above_max",
+      "status": 400,
+      "price": 3.1,
+      "shortfall": null,
+      "request_id": "req_Z9x8C7v6B5n4M3l2K1j0H9g8",
+      "run": null
+    }
+  }
+}

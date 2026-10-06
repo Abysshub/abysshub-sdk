@@ -535,12 +535,20 @@ def _refusal(status: int, body: Any, request_id: str | None) -> AbyssError:
         status=status,
         param=_text(error.get("param")),
         doc_url=_text(error.get("doc_url")),
+        shortfall=_number(error.get("shortfall")),
+        price=_number(error.get("price")),
         request_id=body_request_id if isinstance(body_request_id, str) else request_id,
     )
 
 
 def _text(value: Any) -> str | None:
     return value if isinstance(value, str) else None
+
+
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
 
 
 def _parse(text: str | None) -> Any:

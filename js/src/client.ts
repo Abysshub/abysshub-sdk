@@ -393,6 +393,8 @@ function refusal(status: number, body: unknown, requestId: string | null): Abyss
     status,
     param: typeof error.param === "string" ? error.param : null,
     doc_url: typeof error.doc_url === "string" ? error.doc_url : null,
+    shortfall: typeof error.shortfall === "number" ? error.shortfall : null,
+    price: typeof error.price === "number" ? error.price : null,
     request_id: isObject(body) && typeof body.request_id === "string" ? body.request_id : requestId,
   });
 }

@@ -1,6 +1,6 @@
 import { AbyssError } from "./error.js";
 import { uploadFiles } from "./files.js";
-import { request, type Answer } from "./http.js";
+import { LIMITS, request, type Answer } from "./http.js";
 import { Run } from "./run.js";
 import type { Input, Key, RunData, RunList, Upload, Widget } from "./types.js";
 import { VERSION } from "./version.js";
@@ -8,6 +8,9 @@ import { VERSION } from "./version.js";
 const API = "https://api.abysshub.com";
 const DEV_API = "https://api.dev.abysshub.com";
 const DEV_KEY_PREFIX = "abyss_sk_dev_";
+
+/** A `Location` naming a run, `…/v1/runs/{id}`, with the id as its group. */
+const RUN_LOCATION = /\/v1\/runs\/([^/?#]+)\/?(?:[?#]|$)/;
 
 /** The pause between two re-attaches that both ended without the run's ending. */
 const REATTACH_PAUSE_MS = 1_000;
@@ -94,14 +97,21 @@ interface Reply {
   cut: boolean;
   location: string | null;
   requestId: string | null;
+  /** The id of the call's run, as far as the call knew it when this reply arrived. */
+  runId: string | null;
 }
 
 type EndedReply = Reply & { run: RunData };
 
-/** One call's waiting: the signal that stops it, and the run as last seen, for a timeout to carry. */
+/**
+ * One call's waiting: the signal that stops it, and what a timeout carries: the run as
+ * last seen, the run's id once known, and the latest `Request-Id`.
+ */
 interface Call {
   signal: AbortSignal | null;
   seen: RunData | null;
+  runId: string | null;
+  requestId: string | null;
 }
 
 export class Abyss {
@@ -161,6 +171,7 @@ export class Abyss {
           code: run.error?.code ?? "platform_fault",
           message: run.error?.message ?? "The run failed.",
           request_id: reply.requestId,
+          run_id: run.id,
           run,
         });
       }
@@ -175,7 +186,7 @@ export class Abyss {
 
   /**
    * Runs one call under its `timeout` and `signal`. When either stops the waiting, the
-   * call raises `AbyssError` with `code: "timeout"` and the run as last seen.
+   * call raises `AbyssError` with `code: "timeout"`, the run as last seen and its id.
    */
   async #call<T>(options: CallOptions, work: (call: Call) => Promise<T>): Promise<T> {
     const timeout = options.timeout ?? this.timeout;
@@ -191,12 +202,18 @@ export class Abyss {
           }, timeout * 1_000);
     if (options.signal?.aborted) abort();
     options.signal?.addEventListener("abort", abort, { once: true });
-    const call: Call = { signal: stop.signal, seen: null };
+    const call = newCall(stop.signal);
     try {
       return await work(call);
     } catch (error) {
       if (!stop.signal.aborted) throw error;
-      throw new AbyssError({ code: "timeout", message, run: call.seen && this.#run(call.seen) });
+      throw new AbyssError({
+        code: "timeout",
+        message,
+        request_id: call.requestId,
+        run_id: call.runId,
+        run: call.seen && this.#run(call.seen),
+      });
     } finally {
       clearTimeout(timer);
       options.signal?.removeEventListener("abort", abort);
@@ -288,7 +305,7 @@ export class Abyss {
   }
 
   #run(data: RunData): Run {
-    return new Run(data, () => this.#getRun({ signal: null, seen: null }, data.id, false));
+    return new Run(data, () => this.#getRun(newCall(null), data.id, false));
   }
 
   #widgetURL(widget: string): string {
@@ -302,6 +319,7 @@ export class Abyss {
         code: "unexpected_response",
         message: "The press answered without a Location to read the run at.",
         request_id: reply.requestId,
+        run_id: reply.runId,
       });
     }
     const url = new URL(location, `${this.baseURL}/`);
@@ -330,13 +348,14 @@ export class Abyss {
     for (let attempt = 0; ; attempt++) {
       let answer: Answer;
       try {
-        answer = await request(url, init);
+        answer = await request(url, init, LIMITS, (headers) => heard(call, headers));
       } catch (error) {
         if (call.signal?.aborted) throw error;
         if (attempt >= retries) {
           throw new AbyssError({
             code: "connection_error",
             message: "The connection dropped, or timed out, before the API answered.",
+            run_id: call.runId,
             cause: error,
           });
         }
@@ -347,14 +366,30 @@ export class Abyss {
       const parsed = parse(answer.text);
       if (answer.status === 200 || answer.status === 202) {
         const run = isRun(parsed) ? parsed : null;
-        if (run) call.seen = run;
-        return { body: parsed, run, cut: answer.text === null, location: answer.headers.get("location"), requestId };
+        if (run) {
+          call.seen = run;
+          call.runId = run.id;
+        }
+        const location = answer.headers.get("location");
+        return { body: parsed, run, cut: answer.text === null, location, requestId, runId: call.runId };
       }
       const pause = retryPause(answer, attempt);
-      if (pause === null || attempt >= retries) throw refusal(answer.status, parsed, requestId);
+      if (pause === null || attempt >= retries) throw refusal(answer.status, parsed, requestId, call.runId);
       await sleep(pause, call.signal);
     }
   }
+}
+
+/** A call's waiting before it has learned anything. */
+function newCall(signal: AbortSignal | null): Call {
+  return { signal, seen: null, runId: null, requestId: null };
+}
+
+/** Notes a response's headers as they arrive: its `Request-Id`, and the run its `Location` names. */
+function heard(call: Call, headers: Headers): void {
+  call.requestId = headers.get("request-id") ?? call.requestId;
+  const runId = headers.get("location")?.match(RUN_LOCATION)?.[1];
+  if (runId) call.runId = runId;
 }
 
 /** How long to wait before sending a refused request again, or null when it is not retried. */
@@ -374,10 +409,10 @@ function backoff(attempt: number): number {
 /** The reply's body when it is what the route answers, else `unexpected_response`. */
 function expect<T>(reply: Reply, is: (value: unknown) => value is T, message: string): T {
   if (is(reply.body)) return reply.body;
-  throw new AbyssError({ code: "unexpected_response", message, request_id: reply.requestId });
+  throw new AbyssError({ code: "unexpected_response", message, request_id: reply.requestId, run_id: reply.runId });
 }
 
-function refusal(status: number, body: unknown, requestId: string | null): AbyssError {
+function refusal(status: number, body: unknown, requestId: string | null, runId: string | null): AbyssError {
   const error = isObject(body) && isObject(body.error) ? body.error : null;
   if (!error || typeof error.code !== "string") {
     return new AbyssError({
@@ -385,6 +420,7 @@ function refusal(status: number, body: unknown, requestId: string | null): Abyss
       message: `The API answered ${status} without an error body.`,
       status,
       request_id: requestId,
+      run_id: runId,
     });
   }
   return new AbyssError({
@@ -396,6 +432,7 @@ function refusal(status: number, body: unknown, requestId: string | null): Abyss
     shortfall: typeof error.shortfall === "number" ? error.shortfall : null,
     price: typeof error.price === "number" ? error.price : null,
     request_id: isObject(body) && typeof body.request_id === "string" ? body.request_id : requestId,
+    run_id: runId,
   });
 }
 

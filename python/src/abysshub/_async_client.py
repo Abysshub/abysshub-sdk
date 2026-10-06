@@ -14,6 +14,7 @@ from ._client import (
     _Call,
     _expect,
     _has_ended,
+    _heard,
     _is_key,
     _is_run,
     _is_run_list,
@@ -260,7 +261,14 @@ class AsyncAbyss(_Base[AsyncRun]):
             self._check(call)
             try:
                 answer = await arequest(
-                    self._http, method, url, sent_headers, content, self._timeouts(call), call.deadline
+                    self._http,
+                    method,
+                    url,
+                    sent_headers,
+                    content,
+                    self._timeouts(call),
+                    call.deadline,
+                    lambda headers: _heard(call, headers),
                 )
             except Stopped:
                 raise self._timed_out(call) from None

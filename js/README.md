@@ -111,6 +111,7 @@ A refusal, a failed run, a timeout and a lost connection all raise one class, `A
 | `request_id` | quote it to support, else `null` |
 | `shortfall` | with `insufficient_funds`: how much Byssium the wallet is short, else `null` |
 | `price` | with `price_above_max`: what the run costs now, else `null` |
+| `run_id` | the id of the run the call started or read, once the press's `Location` or a run body named it, else `null` |
 | `run` | the run, for a failed run or a timeout, else `null` |
 
 - **Refusals:** `invalid_api_key` (401), `not_found` (404), `invalid_request`, `invalid_input`, `held_input_*`, `input_unreachable` and `idempotency_key_reused` (422), `insufficient_funds` (402), `spend_cap_reached` and `price_above_max` (400), `idempotency_key_in_use` (409), `rate_limited` (429), `server_error` (500).
@@ -137,13 +138,14 @@ There is no timeout by default: `run()` waits as long as the run takes. `timeout
 try {
   const run = await abyss.run("widget_131", input, { timeout: 60, signal: AbortSignal.timeout(90_000) });
 } catch (error) {
-  if (error instanceof AbyssError && error.code === "timeout") {
-    // The run goes on. error.run is the run as last seen, or null when none was seen yet.
+  if (error instanceof AbyssError && error.code === "timeout" && error.run_id) {
+    // The run goes on: wait for it again, without pressing (and paying) twice.
+    const run = await abyss.runs.get(error.run_id, { wait: true });
   }
 }
 ```
 
-Either one raises `AbyssError` with `code: "timeout"` and `run`, the run as last seen. During the press's first hold the run has not been seen yet, so `run` is `null`; to keep its `id` whatever happens, press with `runs.create()` and wait with `runs.get(id, { wait: true, timeout })`.
+Either one raises `AbyssError` with `code: "timeout"`, `run`, the run as last seen or `null`, and `run_id`, the run's id. The press answers its `Location` at once, so `run_id` is set as soon as the press has answered, even while no run has been seen yet; it is `null` only when the waiting stopped before that. Nothing is sent after the waiting stops.
 
 ## Names
 

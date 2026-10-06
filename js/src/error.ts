@@ -7,6 +7,8 @@ export interface AbyssErrorFields {
   param?: string | null;
   doc_url?: string | null;
   request_id?: string | null;
+  /** The id of the run the call started or read, once the call has learned it. */
+  run_id?: string | null;
   /** With `insufficient_funds`: how much Byssium the wallet is short. */
   shortfall?: number | null;
   /** With `price_above_max`: what the run costs now. */
@@ -27,6 +29,12 @@ export class AbyssError extends Error {
   readonly param: string | null;
   readonly doc_url: string | null;
   readonly request_id: string | null;
+  /**
+   * The id of the run the call started or read, once the call has learned it from a
+   * `Location` header or a run body; else null. A `timeout` carries it even when no run
+   * body has arrived, so `runs.get(run_id, { wait: true })` finds the run again.
+   */
+  readonly run_id: string | null;
   /** With `insufficient_funds`: how much Byssium the wallet is short; else null. */
   readonly shortfall: number | null;
   /** With `price_above_max`: what the run costs now; else null. */
@@ -41,6 +49,7 @@ export class AbyssError extends Error {
     this.param = fields.param ?? null;
     this.doc_url = fields.doc_url ?? null;
     this.request_id = fields.request_id ?? null;
+    this.run_id = fields.run_id ?? null;
     this.shortfall = fields.shortfall ?? null;
     this.price = fields.price ?? null;
     this.run = fields.run ?? null;

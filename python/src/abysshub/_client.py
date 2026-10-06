@@ -4,6 +4,7 @@ import json
 import math
 import os
 import platform
+import re
 import time
 import uuid
 from collections.abc import Callable, Mapping
@@ -24,6 +25,9 @@ from ._types import Key, RunList, Upload, Widget, parse_key, parse_upload, parse
 API = "https://api.abysshub.com"
 DEV_API = "https://api.dev.abysshub.com"
 DEV_KEY_PREFIX = "abyss_sk_dev_"
+
+RUN_LOCATION = re.compile(r"/v1/runs/([^/?#]+)/?(?:[?#]|$)")
+"""A ``Location`` naming a run, ``…/v1/runs/{id}``, with the id as its group."""
 
 REATTACH_PAUSE = 1.0
 """Seconds between two re-attaches that both ended without the run's ending."""
@@ -55,16 +59,21 @@ class _Reply:
     """Whether the connection was cut, or went silent, after the headers."""
     location: str | None
     request_id: str | None
+    run_id: str | None
+    """The id of the call's run, as far as the call knew it when this reply arrived."""
 
 
 @dataclass
 class _Call:
-    """One call's waiting: when it stops, and the run as last seen, for a timeout to carry."""
+    """One call's waiting: when it stops, and what a timeout carries: the run as last
+    seen, the run's id once known, and the latest ``Request-Id``."""
 
     timeout: float | None
     deadline: float | None
     """A ``time.monotonic()`` reading, or None to wait as long as it takes."""
     seen: dict[str, Any] | None = None
+    run_id: str | None = None
+    request_id: str | None = None
 
     def left(self) -> float | None:
         return None if self.deadline is None else self.deadline - time.monotonic()
@@ -182,6 +191,8 @@ class _Base(Generic[R]):
         return AbyssError(
             "timeout",
             f"Stopped waiting after {call.timeout} s. The run goes on.",
+            request_id=call.request_id,
+            run_id=call.run_id,
             run=self._run(call.seen) if call.seen is not None else None,
         )
 
@@ -268,6 +279,7 @@ class _Base(Generic[R]):
                 "unexpected_response",
                 "The press answered without a Location to read the run at.",
                 request_id=reply.request_id,
+                run_id=reply.run_id,
             )
         return str(httpx.URL(f"{self.base_url}/").join(location).copy_set_param("wait", "true"))
 
@@ -290,6 +302,7 @@ class _Base(Generic[R]):
             raise AbyssError(
                 "connection_error",
                 "The connection dropped, or timed out, before the API answered.",
+                run_id=call.run_id,
             ) from error
         return _backoff(attempt)
 
@@ -302,10 +315,12 @@ class _Base(Generic[R]):
             run = parsed if _is_run(parsed) else None
             if run is not None:
                 call.seen = run
-            return _Reply(parsed, run, answer.text is None, answer.headers.get("location"), request_id)
+                call.run_id = run["id"]
+            location = answer.headers.get("location")
+            return _Reply(parsed, run, answer.text is None, location, request_id, call.run_id)
         pause = _retry_pause(answer, attempt)
         if pause is None or attempt >= limit:
-            raise _refusal(answer.status, parsed, request_id)
+            raise _refusal(answer.status, parsed, request_id, call.run_id)
         return pause
 
     def _ended(self, reply: _Reply) -> R:
@@ -314,7 +329,7 @@ class _Base(Generic[R]):
         run = self._run(reply.run)
         if run.status == "failed":
             error = run.error or RunError("platform_fault", "The run failed.")
-            raise AbyssError(error.code, error.message, request_id=reply.request_id, run=run)
+            raise AbyssError(error.code, error.message, request_id=reply.request_id, run_id=run.id, run=run)
         return run
 
 
@@ -481,7 +496,16 @@ class Abyss(_Base[Run]):
         while True:
             self._check(call)
             try:
-                answer = request(self._http, method, url, sent_headers, content, self._timeouts(call), call.deadline)
+                answer = request(
+                    self._http,
+                    method,
+                    url,
+                    sent_headers,
+                    content,
+                    self._timeouts(call),
+                    call.deadline,
+                    lambda headers: _heard(call, headers),
+                )
             except Stopped:
                 raise self._timed_out(call) from None
             except httpx.TransportError as error:
@@ -493,6 +517,14 @@ class Abyss(_Base[Run]):
                 pause = reply
             self._sleep(call, pause)
             attempt += 1
+
+
+def _heard(call: _Call, headers: httpx.Headers) -> None:
+    """Notes a response's headers as they arrive: its ``Request-Id``, and the run its ``Location`` names."""
+    call.request_id = headers.get("request-id", call.request_id)
+    match = RUN_LOCATION.search(headers.get("location", ""))
+    if match is not None:
+        call.run_id = match.group(1)
 
 
 def _retry_pause(answer: Answer, attempt: int) -> float | None:
@@ -516,10 +548,10 @@ def _expect(reply: _Reply, is_: Callable[[Any], bool], message: str) -> Any:
     """The reply's body when it is what the route answers, else ``unexpected_response``."""
     if is_(reply.body):
         return reply.body
-    raise AbyssError("unexpected_response", message, request_id=reply.request_id)
+    raise AbyssError("unexpected_response", message, request_id=reply.request_id, run_id=reply.run_id)
 
 
-def _refusal(status: int, body: Any, request_id: str | None) -> AbyssError:
+def _refusal(status: int, body: Any, request_id: str | None, run_id: str | None) -> AbyssError:
     error = body.get("error") if isinstance(body, dict) else None
     if not isinstance(error, dict) or not isinstance(error.get("code"), str):
         return AbyssError(
@@ -527,6 +559,7 @@ def _refusal(status: int, body: Any, request_id: str | None) -> AbyssError:
             f"The API answered {status} without an error body.",
             status=status,
             request_id=request_id,
+            run_id=run_id,
         )
     body_request_id = body.get("request_id")
     return AbyssError(
@@ -538,6 +571,7 @@ def _refusal(status: int, body: Any, request_id: str | None) -> AbyssError:
         shortfall=_number(error.get("shortfall")),
         price=_number(error.get("price")),
         request_id=body_request_id if isinstance(body_request_id, str) else request_id,
+        run_id=run_id,
     )
 
 

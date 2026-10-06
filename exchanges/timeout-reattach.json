@@ -1,5 +1,5 @@
 {
-  "description": "The holds are full, so the press answers 202 queued, and the re-attach holds past the caller's timeout: the library stops waiting and raises timeout, a library-only code, with the run as last seen. The run goes on.",
+  "description": "The holds are full, so the press answers 202 queued, and the re-attach holds past the caller's timeout: the library stops waiting and raises timeout, a library-only code, with the run as last seen, its id, and the Request-Id of the re-attach that was holding. The run goes on.",
   "call": {
     "widget": "widget_131",
     "input": {
@@ -67,6 +67,8 @@
   "outcome": {
     "error": {
       "code": "timeout",
+      "request_id": "req_T1i2M3e4O5u6T7h8O9l0D1e2",
+      "run_id": "run_6Tm5Rn4Qb3Pv2Ox1Nw9Mu8Ly",
       "run": {
         "id": "run_6Tm5Rn4Qb3Pv2Ox1Nw9Mu8Ly",
         "status": "queued"

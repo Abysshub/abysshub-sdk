@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import httpx
@@ -37,16 +38,21 @@ def request(
     content: bytes | None = None,
     timeout: httpx.Timeout | None = None,
     deadline: float | None = None,
+    heard: Callable[[httpx.Headers], None] | None = None,
 ) -> Answer:
     """Sends one request and reads its whole body.
 
     A failure before the headers raises ``httpx.TransportError``; a cut after them
     answers ``text=None``, so the caller can re-attach. Past ``deadline`` (a
     ``time.monotonic()`` reading), a hold that still sends its spaces raises ``Stopped``.
+    ``heard`` is handed the headers as soon as they arrive, so a stop during the body
+    still leaves them known.
     """
     with client.stream(
         method, url, headers=headers, content=content, timeout=timeout or client.timeout
     ) as response:
+        if heard is not None:
+            heard(response.headers)
         chunks = []
         try:
             for chunk in response.iter_bytes():
@@ -66,11 +72,14 @@ async def arequest(
     content: bytes | None = None,
     timeout: httpx.Timeout | None = None,
     deadline: float | None = None,
+    heard: Callable[[httpx.Headers], None] | None = None,
 ) -> Answer:
     """``request()`` on httpx's async client."""
     async with client.stream(
         method, url, headers=headers, content=content, timeout=timeout or client.timeout
     ) as response:
+        if heard is not None:
+            heard(response.headers)
         chunks = []
         try:
             async for chunk in response.aiter_bytes():

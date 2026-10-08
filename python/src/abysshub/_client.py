@@ -445,10 +445,10 @@ class Abyss(_Base[Run]):
         self._stored(call, field, filename, stored)
         return grant.id
 
-    def _download(self, url: str, range: str | None) -> tuple[int, Callable[[], bytes]]:
+    def _download(self, url: str, range_header: str | None) -> tuple[int, Callable[[], bytes]]:
         """Opens an output file in storage, without the API key, with a ``Range`` header or
         none: returns its status, and a call that reads its content and closes it."""
-        headers = {"Range": range} if range else None
+        headers = {"Range": range_header} if range_header else None
         try:
             response = self._http.send(self._http.build_request("GET", url, headers=headers), stream=True)
         except httpx.TransportError as error:

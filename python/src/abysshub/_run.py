@@ -71,12 +71,11 @@ class RunFile(_RunFileFields):
             status, body = download(self.url, first)
         if not parts or status != 206:
             return _downloaded(self.path, status, body())
-        url = self.url
 
         def part(index: int) -> bytes:
             if index == 0:
                 return _part(self.path, parts[0], status, body())
-            part_status, part_body = download(url, _range(parts[index]))
+            part_status, part_body = download(self.url, _range(parts[index]))
             return _part(self.path, parts[index], part_status, part_body())
 
         with ThreadPoolExecutor(len(parts)) as pool:
@@ -110,12 +109,11 @@ class AsyncRunFile(_RunFileFields):
             status, body = await download(self.url, first)
         if not parts or status != 206:
             return _downloaded(self.path, status, await body())
-        url = self.url
 
         async def part(index: int) -> bytes:
             if index == 0:
                 return _part(self.path, parts[0], status, await body())
-            part_status, part_body = await download(url, _range(parts[index]))
+            part_status, part_body = await download(self.url, _range(parts[index]))
             return _part(self.path, parts[index], part_status, await part_body())
 
         reads = [asyncio.ensure_future(part(index)) for index in range(len(parts))]

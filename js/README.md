@@ -20,6 +20,14 @@ try {
 
 `Abyss` is the package's default export, the form each Widget's page shows. The named form, `import { Abyss } from "abysshub"`, works too and is the same class.
 
+From CommonJS, `require()` loads the same module on Node 20.19+ and 22.12+:
+
+```js
+const { Abyss, file } = require("abysshub");
+```
+
+A bare `require("abysshub")` returns the module, not the class, so destructure it. On an older Node, `require()` fails with `ERR_REQUIRE_ESM`: use `const { Abyss, file } = await import("abysshub")` there, or upgrade Node.
+
 `run()` presses the Widget and waits for the run to end, however long it takes, then returns the succeeded run. A refusal or a failed run raises `AbyssError`.
 
 It runs on Node 20+, Bun and Deno, with no dependencies. An API key is a server-side secret, so in a browser `new Abyss()` throws.

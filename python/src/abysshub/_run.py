@@ -1,21 +1,31 @@
 from __future__ import annotations
 
+import asyncio
+import math
 import os
 from collections.abc import Awaitable, Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Generic, Literal, TypeVar
 
 from ._error import AbyssError
 
-Download = Callable[[str], tuple[int, bytes]]
-"""Downloads a URL from storage: answers its status and content."""
+Download = Callable[[str, str | None], tuple[int, Callable[[], bytes]]]
+"""Opens a URL in storage, with a ``Range`` header or none: answers its status, and a call
+that reads its content."""
 
 Reread = Callable[[str], dict[str, Any]]
 """Reads a run again with ``GET /v1/runs/{id}``."""
 
-AsyncDownload = Callable[[str], Awaitable[tuple[int, bytes]]]
+AsyncDownload = Callable[[str, str | None], Awaitable[tuple[int, Callable[[], Awaitable[bytes]]]]]
 AsyncReread = Callable[[str], Awaitable[dict[str, Any]]]
+
+RANGED_FROM = 64 * 1024 * 1024
+"""A file this many bytes or larger downloads as parallel byte ranges: 64 MiB."""
+
+RANGES = 16
+"""How many parallel byte ranges a large file downloads as."""
 
 RunStatus = Literal["queued", "running", "succeeded", "failed"]
 """A run's place: ``succeeded`` and ``failed`` are final."""
@@ -45,14 +55,33 @@ class RunFile(_RunFileFields):
     _refresh: Callable[[], None] | None = field(default=None, init=False, repr=False, compare=False)
 
     def read(self) -> bytes:
-        """Downloads the file. An expired ``url`` is refreshed once, by reading the run again."""
+        """Downloads the file. An expired ``url`` is refreshed once, by reading the run again.
+        A file of ``RANGED_FROM`` bytes or more downloads as ``RANGES`` parallel byte ranges
+        of its one ``url``: the first goes alone, and once it answers 206 the others go
+        together. A storage that ignores ``Range`` answers the whole file to the first."""
         if self._download is None:
             raise _no_client(self.path)
-        status, content = self._download(self.url)
+        download = self._download
+        parts = _ranges(self.size)
+        first = _range(parts[0]) if parts else None
+        status, body = download(self.url, first)
         if status == 403 and self._refresh is not None:
+            body()
             self._refresh()
-            status, content = self._download(self.url)
-        return _downloaded(self.path, status, content)
+            status, body = download(self.url, first)
+        if not parts or status != 206:
+            return _downloaded(self.path, status, body())
+        url = self.url
+
+        def part(index: int) -> bytes:
+            if index == 0:
+                return _part(self.path, parts[0], status, body())
+            part_status, part_body = download(url, _range(parts[index]))
+            return _part(self.path, parts[index], part_status, part_body())
+
+        with ThreadPoolExecutor(len(parts)) as pool:
+            reads = [pool.submit(part, index) for index in range(len(parts))]
+            return b"".join(read.result() for read in reads)
 
     def save(self, path: str | os.PathLike[str]) -> Path:
         """Downloads the file to ``path``, making its folders, and returns ``path``."""
@@ -67,14 +96,36 @@ class AsyncRunFile(_RunFileFields):
     _refresh: Callable[[], Awaitable[None]] | None = field(default=None, init=False, repr=False, compare=False)
 
     async def read(self) -> bytes:
-        """Downloads the file. An expired ``url`` is refreshed once, by reading the run again."""
+        """Downloads the file. An expired ``url`` is refreshed once, by reading the run again.
+        A large file downloads as parallel byte ranges, as ``RunFile.read()`` does."""
         if self._download is None:
             raise _no_client(self.path)
-        status, content = await self._download(self.url)
+        download = self._download
+        parts = _ranges(self.size)
+        first = _range(parts[0]) if parts else None
+        status, body = await download(self.url, first)
         if status == 403 and self._refresh is not None:
+            await body()
             await self._refresh()
-            status, content = await self._download(self.url)
-        return _downloaded(self.path, status, content)
+            status, body = await download(self.url, first)
+        if not parts or status != 206:
+            return _downloaded(self.path, status, await body())
+        url = self.url
+
+        async def part(index: int) -> bytes:
+            if index == 0:
+                return _part(self.path, parts[0], status, await body())
+            part_status, part_body = await download(url, _range(parts[index]))
+            return _part(self.path, parts[index], part_status, await part_body())
+
+        reads = [asyncio.ensure_future(part(index)) for index in range(len(parts))]
+        try:
+            return b"".join(await asyncio.gather(*reads))
+        except BaseException:
+            for read in reads:
+                read.cancel()
+            await asyncio.gather(*reads, return_exceptions=True)
+            raise
 
     async def save(self, path: str | os.PathLike[str]) -> Path:
         """Downloads the file to ``path``, making its folders, and returns ``path``."""
@@ -204,8 +255,40 @@ def _no_client(path: str) -> AbyssError:
 
 def _downloaded(path: str, status: int, content: bytes) -> bytes:
     if not 200 <= status < 300:
-        raise AbyssError("unexpected_response", f"The download of {path} answered {status}.", status=status)
+        raise _answered(path, status)
     return content
+
+
+def _ranges(size: int) -> list[tuple[int, int]] | None:
+    """The byte ranges, first and last byte included, a file of ``size`` bytes downloads
+    as, or None when it downloads whole."""
+    if size < RANGED_FROM:
+        return None
+    step = math.ceil(size / RANGES)
+    return [(first, min(first + step, size) - 1) for first in range(0, size, step)]
+
+
+def _range(part: tuple[int, int]) -> str:
+    """The ``Range`` header naming ``part``."""
+    return f"bytes={part[0]}-{part[1]}"
+
+
+def _part(path: str, part: tuple[int, int], status: int, content: bytes) -> bytes:
+    """The bytes of one range, which must answer 206 with exactly the range's length."""
+    if status != 206:
+        raise _answered(path, status)
+    first, last = part
+    if len(content) != last - first + 1:
+        raise AbyssError(
+            "unexpected_response",
+            f"The download of {path} answered {len(content)} bytes for the range {first}-{last}.",
+            status=status,
+        )
+    return content
+
+
+def _answered(path: str, status: int) -> AbyssError:
+    return AbyssError("unexpected_response", f"The download of {path} answered {status}.", status=status)
 
 
 def _write(target: Path, content: bytes) -> Path:

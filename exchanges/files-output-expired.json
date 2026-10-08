@@ -65,7 +65,10 @@
       "storage": true,
       "request": {
         "method": "GET",
-        "path": "/storage/abysshub-outputs/runs/9201/output/charts/a.png?X-Amz-Signature=expired"
+        "path": "/storage/abysshub-outputs/runs/9201/output/charts/a.png?X-Amz-Signature=expired",
+        "headers": {
+          "Range": null
+        }
       },
       "response": {
         "status": 403,
@@ -121,7 +124,10 @@
       "storage": true,
       "request": {
         "method": "GET",
-        "path": "/storage/abysshub-outputs/runs/9201/output/charts/a.png?X-Amz-Signature=fresh"
+        "path": "/storage/abysshub-outputs/runs/9201/output/charts/a.png?X-Amz-Signature=fresh",
+        "headers": {
+          "Range": null
+        }
       },
       "response": {
         "status": 200,
@@ -135,7 +141,10 @@
       "storage": true,
       "request": {
         "method": "GET",
-        "path": "/storage/abysshub-outputs/runs/9201/output/output.json?X-Amz-Signature=fresh"
+        "path": "/storage/abysshub-outputs/runs/9201/output/output.json?X-Amz-Signature=fresh",
+        "headers": {
+          "Range": null
+        }
       },
       "response": {
         "status": 200,

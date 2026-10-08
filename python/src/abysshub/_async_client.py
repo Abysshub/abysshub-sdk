@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import math
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from types import TracebackType
 from typing import Any
 
@@ -12,6 +12,7 @@ from ._client import (
     REATTACH_PAUSE,
     _Base,
     _Call,
+    _dropped_download,
     _expect,
     _has_ended,
     _heard,
@@ -213,13 +214,24 @@ class AsyncAbyss(_Base[AsyncRun]):
         self._stored(call, field, filename, stored)
         return grant.id
 
-    async def _download(self, url: str) -> tuple[int, bytes]:
-        """Downloads an output file from storage, without the API key."""
+    async def _download(self, url: str, range: str | None) -> tuple[int, Callable[[], Awaitable[bytes]]]:
+        """Opens an output file in storage, without the API key, with a ``Range`` header or
+        none: returns its status, and a call that reads its content and closes it."""
+        headers = {"Range": range} if range else None
         try:
-            response = await self._http.get(url)
+            response = await self._http.send(self._http.build_request("GET", url, headers=headers), stream=True)
         except httpx.TransportError as error:
-            raise AbyssError("connection_error", "The connection to storage dropped during a download.") from error
-        return response.status_code, response.content
+            raise _dropped_download() from error
+
+        async def read() -> bytes:
+            try:
+                return await response.aread()
+            except httpx.TransportError as error:
+                raise _dropped_download() from error
+            finally:
+                await response.aclose()
+
+        return response.status_code, read
 
     async def _get_run(self, call: _Call, id: str, wait: bool) -> dict[str, Any]:
         """Reads a run with ``GET /v1/runs/{id}``, holding with ``?wait=true``. A cut hold is read again."""

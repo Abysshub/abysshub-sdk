@@ -103,7 +103,7 @@ const paths = await run.save("output"); // ["output/charts/a.png", "output/outpu
 - **A string passes through** as an `https` URL or an upload id. A multi-file Field takes a list, which may mix all three kinds.
 - **Before the press,** each file is uploaded with `POST /v1/widgets/{widget}/uploads`, then sent to storage, in parallel, and its id goes in the input. An upload refusal (`held_input_*`) raises before any press. A retried press reuses the ids; it never uploads again.
 - **`await run.save(dir)`** writes every output file under `dir` at its `path`, making folders, and answers the paths it wrote.
-- **Each of `run.output_files`** has `await f.save(path)` and `await f.read()`, which answers a `Uint8Array`. An expired URL is refreshed once, by reading the run again with `GET /v1/runs/{id}`.
+- **Each of `run.output_files`** has `await f.save(path)` and `await f.read()`, which answers a `Uint8Array`. An expired URL is refreshed once, by reading the run again with `GET /v1/runs/{id}`. A file of 64 MiB or more downloads as 16 parallel byte ranges of its one URL.
 
 ## Errors
 

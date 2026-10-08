@@ -1,0 +1,89 @@
+{
+  "description": "Storage ignores Range: the first range of a 64 MiB file answers 200 with the whole file, which the library keeps as it is, sending no other range.",
+  "call": {
+    "widget": "widget_2048",
+    "input": {
+      "frames": 960
+    },
+    "save": "output"
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_2048/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "frames": 960
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Location": "{base}/v1/runs/run_4hT9wQe2Rk7Ym3Pz8Lc5Nv1B",
+          "Request-Id": "req_F1r2A3m4E5s6B7i8G9f0I1l2"
+        },
+        "chunks": [
+          " "
+        ],
+        "body": {
+          "id": "run_4hT9wQe2Rk7Ym3Pz8Lc5Nv1B",
+          "widget": "widget_2048",
+          "status": "succeeded",
+          "price": 0,
+          "result": {
+            "frames": 960
+          },
+          "output_files": [
+            {
+              "path": "frames.bin",
+              "size": 67108869,
+              "content_type": "application/octet-stream",
+              "url": "{base}/storage/runs/9377/output/frames.bin?Expires=1791392400&Signature=Qm9yZW-Fs~aWduZWQ_&Key-Pair-Id=K2JCJMDEHXQW5F"
+            }
+          ],
+          "error": null,
+          "created_at": "2026-10-08T10:02:11Z",
+          "started_at": "2026-10-08T10:02:12Z",
+          "ended_at": "2026-10-08T10:03:40Z"
+        }
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "GET",
+        "path": "/storage/runs/9377/output/frames.bin?Expires=1791392400&Signature=Qm9yZW-Fs~aWduZWQ_&Key-Pair-Id=K2JCJMDEHXQW5F",
+        "headers": {
+          "Range": "bytes=0-4194304"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/octet-stream"
+        },
+        "pattern": [
+          0,
+          67108868
+        ]
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_4hT9wQe2Rk7Ym3Pz8Lc5Nv1B",
+      "status": "succeeded"
+    },
+    "saved": {
+      "frames.bin": {
+        "pattern": 67108869
+      }
+    }
+  }
+}

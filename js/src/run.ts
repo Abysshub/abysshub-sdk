@@ -5,6 +5,24 @@ import type { RunData, RunError, RunFileData, RunStatus } from "./types.js";
 /** Reads the run again with `GET /v1/runs/{id}`. */
 export type Reread = () => Promise<RunData>;
 
+/** A file this many bytes or larger downloads as parallel byte ranges: 64 MiB. */
+export const RANGED_FROM = 64 * 1024 * 1024;
+
+/** How many parallel byte ranges a large file downloads as. */
+export const RANGES = 16;
+
+/** A byte range, its first and last byte included, as a `Range` header names it. */
+type Range = [first: number, last: number];
+
+/** The byte ranges a file of `size` bytes downloads as, or null when it downloads whole. */
+function ranges(size: number): Range[] | null {
+  if (size < RANGED_FROM) return null;
+  const step = Math.ceil(size / RANGES);
+  const parts: Range[] = [];
+  for (let first = 0; first < size; first += step) parts.push([first, Math.min(first + step, size) - 1]);
+  return parts;
+}
+
 /** A run, with `/v1`'s names. */
 export class Run {
   id: string;
@@ -77,23 +95,78 @@ export class RunFile {
     this.#refresh = refresh;
   }
 
-  /** Downloads the file. An expired `url` is refreshed once, by reading the run again. */
+  /**
+   * Downloads the file. An expired `url` is refreshed once, by reading the run again. A
+   * file of `RANGED_FROM` bytes or more downloads as `RANGES` parallel byte ranges of its
+   * one `url`: the first goes alone, and once it answers 206 the others go together. A
+   * storage that ignores `Range` answers the whole file to the first, which is kept.
+   */
   async read(): Promise<Uint8Array> {
-    let response = await fetch(this.url);
-    if (response.status === 403) {
-      await response.body?.cancel();
-      await this.#refresh();
-      response = await fetch(this.url);
+    const parts = ranges(this.size);
+    const stop = new AbortController();
+    try {
+      let response = await this.#get(parts?.[0], stop.signal);
+      if (response.status === 403) {
+        await response.body?.cancel();
+        await this.#refresh();
+        response = await this.#get(parts?.[0], stop.signal);
+      }
+      if (!response.ok) {
+        await response.body?.cancel();
+        throw this.#answered(response.status);
+      }
+      if (!parts || response.status !== 206) return new Uint8Array(await response.arrayBuffer());
+      const first = response;
+      const reads = parts.map(async (part, index) =>
+        this.#part(index === 0 ? first : await this.#get(part, stop.signal), part),
+      );
+      try {
+        const bytes = new Uint8Array(this.size);
+        for (const [index, part] of (await Promise.all(reads)).entries()) bytes.set(part, parts[index]![0]);
+        return bytes;
+      } catch (error) {
+        stop.abort();
+        await Promise.allSettled(reads);
+        throw error;
+      }
+    } catch (error) {
+      if (error instanceof AbyssError) throw error;
+      throw new AbyssError({
+        code: "connection_error",
+        message: "The connection to storage dropped during a download.",
+        cause: error,
+      });
     }
-    if (!response.ok) {
+  }
+
+  /** Fetches the file from storage, without the API key: whole, or the byte range `part`. */
+  #get(part: Range | undefined, signal: AbortSignal): Promise<Response> {
+    return fetch(this.url, { signal, ...(part ? { headers: { Range: `bytes=${part[0]}-${part[1]}` } } : {}) });
+  }
+
+  /** The bytes of one range, which must answer 206 with exactly the range's length. */
+  async #part(response: Response, [first, last]: Range): Promise<Uint8Array> {
+    if (response.status !== 206) {
       await response.body?.cancel();
+      throw this.#answered(response.status);
+    }
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length !== last - first + 1) {
       throw new AbyssError({
         code: "unexpected_response",
-        message: `The download of ${this.path} answered ${response.status}.`,
+        message: `The download of ${this.path} answered ${bytes.length} bytes for the range ${first}-${last}.`,
         status: response.status,
       });
     }
-    return new Uint8Array(await response.arrayBuffer());
+    return bytes;
+  }
+
+  #answered(status: number): AbyssError {
+    return new AbyssError({
+      code: "unexpected_response",
+      message: `The download of ${this.path} answered ${status}.`,
+      status,
+    });
   }
 
   /** Downloads the file to `path`, making its folders, and answers `path`. */

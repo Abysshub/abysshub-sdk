@@ -102,7 +102,7 @@ paths = run.save("output")  # [Path("output/charts/a.png"), Path("output/output.
 - **A string passes through** as an `https` URL or an upload id. A multi-file Field takes a list, which may mix all three kinds.
 - **Before the press,** each file is uploaded with `POST /v1/widgets/{widget}/uploads`, then sent to storage, in parallel, and its id goes in the input. An upload refusal (`held_input_*`) raises before any press. A press that drops before any headers is sent again with the same ids; it never uploads again.
 - **`run.save(dir)`** writes every output file under `dir` at its `path`, making folders, and returns the paths it wrote.
-- **Each of `run.output_files`** has `f.save(path)` and `f.read()`, which returns `bytes`. An expired URL is refreshed once, by reading the run again with `GET /v1/runs/{id}`.
+- **Each of `run.output_files`** has `f.save(path)` and `f.read()`, which returns `bytes`. An expired URL is refreshed once, by reading the run again with `GET /v1/runs/{id}`. A file of 64 MiB or more downloads as 16 parallel byte ranges of its one URL.
 
 ## Errors
 

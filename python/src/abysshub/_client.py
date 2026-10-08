@@ -445,13 +445,24 @@ class Abyss(_Base[Run]):
         self._stored(call, field, filename, stored)
         return grant.id
 
-    def _download(self, url: str) -> tuple[int, bytes]:
-        """Downloads an output file from storage, without the API key."""
+    def _download(self, url: str, range_header: str | None) -> tuple[int, Callable[[], bytes]]:
+        """Opens an output file in storage, without the API key, with a ``Range`` header or
+        none: returns its status, and a call that reads its content and closes it."""
+        headers = {"Range": range_header} if range_header else None
         try:
-            response = self._http.get(url)
+            response = self._http.send(self._http.build_request("GET", url, headers=headers), stream=True)
         except httpx.TransportError as error:
-            raise AbyssError("connection_error", "The connection to storage dropped during a download.") from error
-        return response.status_code, response.content
+            raise _dropped_download() from error
+
+        def read() -> bytes:
+            try:
+                return response.read()
+            except httpx.TransportError as error:
+                raise _dropped_download() from error
+            finally:
+                response.close()
+
+        return response.status_code, read
 
     def _get_run(self, call: _Call, id: str, wait: bool) -> dict[str, Any]:
         """Reads a run with ``GET /v1/runs/{id}``, holding with ``?wait=true``. A cut hold is read again."""
@@ -542,6 +553,10 @@ def _backoff(attempt: int) -> float:
     # The exponent stops growing once the ceiling is reached, so an unlimited re-attach
     # never makes a float too large.
     return min(RETRY_PAUSE * 2 ** min(attempt, 16), RETRY_PAUSE_CEILING)
+
+
+def _dropped_download() -> AbyssError:
+    return AbyssError("connection_error", "The connection to storage dropped during a download.")
 
 
 def _expect(reply: _Reply, is_: Callable[[Any], bool], message: str) -> Any:

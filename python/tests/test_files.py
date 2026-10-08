@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 from caller import with_files
-from fake_server import Replay, load_exchanges
+from fake_server import Replay, load_exchanges, pattern
 
 from abysshub import Abyss, AbyssError, AsyncAbyss, file
 
@@ -19,6 +19,7 @@ KEY = "abyss_sk_fake_for_tests"
 RECORDINGS = {recording["name"]: recording for recording in load_exchanges("files-*.json")}
 UPLOAD = RECORDINGS["files-upload-press.json"]
 EXPIRED = RECORDINGS["files-output-expired.json"]
+RANGED = RECORDINGS["files-output-ranged.json"]
 CONTENT = UPLOAD["call"]["files"]["report.pdf"]
 
 
@@ -147,3 +148,52 @@ def test_async_each_output_file_has_save_and_read_refreshing_an_expired_url_once
 
     with serving(EXPIRED) as (base, dir):
         asyncio.run(work(base, dir))
+
+
+def test_a_file_of_64_mib_or_more_reads_as_its_16_ranges_byte_for_byte() -> None:
+    with against(RANGED) as (abyss, _):
+        run = abyss.run(RANGED["call"]["widget"], RANGED["call"]["input"])
+        assert run.output_files[0].read() == pattern(0, RANGED["outcome"]["saved"]["frames.bin"]["pattern"] - 1)
+
+
+FAILURES: dict[str, tuple[dict[str, Any], str, int | None]] = {
+    "an error status": (
+        {"status": 503, "headers": {"Content-Type": "application/xml"}, "text": "<Error><Code>SlowDown</Code></Error>"},
+        "unexpected_response",
+        503,
+    ),
+    "a drop": ({"drop": True}, "connection_error", None),
+}
+
+
+@pytest.mark.parametrize("client", ["Abyss", "AsyncAbyss"])
+@pytest.mark.parametrize("failure", FAILURES)
+def test_a_range_that_fails_ends_the_download_with_the_error_a_whole_download_raises(
+    failure: str, client: str
+) -> None:
+    response, code, status = FAILURES[failure]
+    recording = copy.deepcopy(RANGED)
+    recording["exchanges"][9]["response"] = response
+
+    async def read_async(base: str) -> bytes:
+        async with AsyncAbyss(api_key=KEY, base_url=base) as abyss:
+            run = await abyss.run(RANGED["call"]["widget"], RANGED["call"]["input"])
+            return await run.output_files[0].read()
+
+    # The other ranges may be stopped before they reach the server, so not every
+    # recorded request need be sent.
+    server = Replay(recording, KEY)
+    try:
+        with pytest.raises(AbyssError) as raised:
+            if client == "Abyss":
+                with Abyss(api_key=KEY, base_url=server.base) as abyss:
+                    abyss.run(RANGED["call"]["widget"], RANGED["call"]["input"]).output_files[0].read()
+            else:
+                asyncio.run(read_async(server.base))
+        assert raised.value.code == code
+        assert raised.value.status == status
+        if status is not None:
+            assert raised.value.message == f"The download of frames.bin answered {status}."
+        assert server.problems == []
+    finally:
+        server.close()

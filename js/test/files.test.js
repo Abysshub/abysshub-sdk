@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { Abyss, AbyssError, file } from "../dist/index.js";
 import { withFiles } from "./caller.js";
-import { loadExchanges, replay } from "./fake-server.js";
+import { loadExchanges, pattern, replay } from "./fake-server.js";
 
 const KEY = "abyss_sk_fake_for_tests";
 const recordings = Object.fromEntries((await loadExchanges()).map((recording) => [recording.name, recording]));
@@ -82,3 +82,40 @@ test("run.save() refuses an output path that leaves its folder", () => {
     await assert.rejects(run.save(join(dir, "output")), (error) => error instanceof AbyssError);
   });
 });
+
+const ranged = recordings["files-output-ranged.json"];
+
+test("a file of 64 MiB or more reads as its 16 ranges, byte for byte", () =>
+  against(ranged, async (abyss) => {
+    const run = await abyss.run(ranged.call.widget, ranged.call.input);
+    const bytes = await run.output_files[0].read();
+    assert.ok(Buffer.from(bytes.buffer, bytes.byteOffset, bytes.length).equals(pattern(0, ranged.outcome.saved["frames.bin"].pattern - 1)));
+  }));
+
+// A range that fails ends the download with the error a whole download raises, and no
+// bytes. The other ranges are stopped, so some may never reach the server.
+async function rangeFails(failure, check) {
+  const recording = structuredClone(ranged);
+  recording.exchanges[9].response = failure;
+  const server = await replay(recording, { key: KEY });
+  try {
+    const run = await new Abyss({ apiKey: KEY, baseURL: server.base }).run(ranged.call.widget, ranged.call.input);
+    await assert.rejects(run.output_files[0].read(), check);
+    assert.deepEqual(server.problems, []);
+  } finally {
+    await server.close();
+  }
+}
+
+test("a range that answers an error status ends the download with that status", () =>
+  rangeFails(
+    { status: 503, headers: { "Content-Type": "application/xml" }, text: "<Error><Code>SlowDown</Code></Error>" },
+    (error) =>
+      error instanceof AbyssError &&
+      error.code === "unexpected_response" &&
+      error.status === 503 &&
+      error.message === "The download of frames.bin answered 503.",
+  ));
+
+test("a range whose connection drops ends the download with connection_error", () =>
+  rangeFails({ drop: true }, (error) => error instanceof AbyssError && error.code === "connection_error"));

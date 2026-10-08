@@ -1,5 +1,6 @@
-// Packs the package and installs the tarball in a clean folder, then imports it the way
-// each Widget's page writes it: `import Abyss, { file } from "abysshub"`.
+// Packs the package and installs the tarball in a clean folder, then loads it the way
+// each Widget's page writes it, `import Abyss, { file } from "abysshub"`, and the way a
+// CommonJS caller does, `const { Abyss, file } = require("abysshub")`.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
@@ -73,4 +74,49 @@ test("TypeScript type-checks the default import of the packed package", async ()
     }),
   );
   await run(process.execPath, [tsc, "-p", "tsconfig.json"], { cwd: caller });
+});
+
+test("the packed package loads with require() from a CommonJS file", async () => {
+  await writeFile(
+    join(caller, "panel.cjs"),
+    [
+      'const { Abyss, file } = require("abysshub");',
+      'const mod = require("abysshub");',
+      "if (Abyss !== mod.default) throw new Error('Abyss is not the module default');",
+      "if (typeof file !== 'function') throw new Error('file is not a function');",
+      'const abyss = new Abyss({ apiKey: "abyss_sk_dev_test" });',
+      "if (typeof abyss.run !== 'function') throw new Error('abyss.run is not a function');",
+      'console.log("ok");',
+    ].join("\n"),
+  );
+  const { stdout } = await run(process.execPath, ["panel.cjs"], { cwd: caller });
+  assert.equal(stdout.trim(), "ok");
+});
+
+test("TypeScript type-checks a CommonJS require of the packed package", async () => {
+  await writeFile(
+    join(caller, "panel.cts"),
+    [
+      'import abysshub = require("abysshub");',
+      'const abyss: abysshub.Abyss = new abysshub.Abyss({ apiKey: "abyss_sk_dev_test" });',
+      'const pending: Promise<abysshub.Run> = abyss.run("widget_1660", { input_pdf: abysshub.file("report.pdf") });',
+      "void pending;",
+    ].join("\n"),
+  );
+  await writeFile(
+    join(caller, "tsconfig.cjs.json"),
+    JSON.stringify({
+      compilerOptions: {
+        target: "ES2022",
+        lib: ["ES2022", "DOM"],
+        module: "NodeNext",
+        moduleResolution: "NodeNext",
+        strict: true,
+        noEmit: true,
+        types: [],
+      },
+      files: ["panel.cts"],
+    }),
+  );
+  await run(process.execPath, [tsc, "-p", "tsconfig.cjs.json"], { cwd: caller });
 });

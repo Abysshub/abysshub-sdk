@@ -7,18 +7,19 @@ from collections.abc import Awaitable, Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, Optional, TypeVar
 
 from ._error import AbyssError
 
-Download = Callable[[str, str | None], tuple[int, Callable[[], bytes]]]
+# An alias is evaluated at import, where Python 3.9 has no `X | None`: hence Optional.
+Download = Callable[[str, Optional[str]], tuple[int, Callable[[], bytes]]]
 """Opens a URL in storage, with a ``Range`` header or none: answers its status, and a call
 that reads its content."""
 
 Reread = Callable[[str], dict[str, Any]]
 """Reads a run again with ``GET /v1/runs/{id}``."""
 
-AsyncDownload = Callable[[str, str | None], Awaitable[tuple[int, Callable[[], Awaitable[bytes]]]]]
+AsyncDownload = Callable[[str, Optional[str]], Awaitable[tuple[int, Callable[[], Awaitable[bytes]]]]]
 AsyncReread = Callable[[str], Awaitable[dict[str, Any]]]
 
 RANGED_FROM = 64 * 1024 * 1024

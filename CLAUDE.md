@@ -61,8 +61,10 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 ## House rules
 
 - **JS has no dependencies.** Not one runtime `dependency` in `js/package.json`; dev tools only. It runs on Node 20+, Bun and Deno, and in a browser `new Abyss()` throws.
-- **Python has one dependency, `httpx`.** Python 3.10+, a sync client `Abyss` and an async `AsyncAbyss` on httpx's async client, with the same methods and the same exchanges. `python/pyproject.toml` declares a `dev` extra with the test tools.
-- **Oldest supported versions first.** Code must run on Node 20 and Python 3.10. CI also runs newer versions, Bun and Deno.
+- **Python has one dependency, `httpx`.** Python 3.9+, a sync client `Abyss` and an async `AsyncAbyss` on httpx's async client, with the same methods and the same exchanges. `python/pyproject.toml` declares a `dev` extra with the test tools.
+- **Oldest supported versions first.** Code must run on Node 20 and Python 3.9. CI also runs newer versions, Bun and Deno.
+  - **Python 3.9 is the `python3` that macOS ships**, so a caller's first try on a Mac runs on it, though CPython ended 3.9 in October 2025. It rules out `match`, `X | Y` outside an annotation (annotations are lazy under `from __future__ import annotations`; a type alias is not), and 3.10's library additions such as `zip(strict=)` and `dataclass(slots=)`.
+  - **Raising a floor is a maintainer's decision**, released as a minor version. pip then gives a caller on the old Python the last release that ran on it (npm does not: it warns on `engines` and installs the newest).
 - **The tests:** `npm test` in `js/` and `pytest` in `python/`. `.github/workflows/ci.yml` runs both on every pull request, on the oldest and the newest versions. A change to `exchanges/` keeps both languages green.
 - **The packages started as placeholders that hold the published names.** Each one has a test of its dependency rule. Build on `js/package.json` and `python/pyproject.toml`: keep their `name`, their `version` of `0.0.0`, and `repository` (trusted publishing checks it).
 - **This repo is public.** Its issues, pull requests and commits are visible to anyone. Never write a key, a secret, or another repo's code into them.
@@ -75,7 +77,7 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 
 `.github/workflows/live.yml` runs every night at 04:17 UTC, and on demand. It is red when the libraries, dev's `/v1` or the api's per-Widget code have drifted apart.
 - **The contract job** diffs `contract/openapi.json` against dev's `/v1/openapi.json`.
-- **The js (Node 20) and python (3.10) jobs** install the library the way a caller does: JS packed and installed in a folder of its own, Python built and installed, not editable. Each runs its `live/` script with the `ABYSS_DEV_API_KEY` secret. It makes five checks:
+- **The js (Node 20) and python (3.9) jobs** install the library the way a caller does: JS packed and installed in a folder of its own, Python built and installed, not editable. Each runs its `live/` script with the `ABYSS_DEV_API_KEY` secret. It makes five checks:
   - `run()` with a JSON input;
   - `run()` with a file input;
   - `run.save()`;

@@ -76,7 +76,7 @@ jobs:
         run: node live.mjs
 
   python:
-    name: python (3.10)
+    name: python (3.9)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -85,7 +85,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.10"
+          python-version: "3.9"
       # The library as a caller gets it: built and installed, not editable.
       - name: Install the library
         run: pip install ./python

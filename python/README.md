@@ -18,7 +18,7 @@ except AbyssError as error:
 
 `run()` presses the Widget and waits for the run to end, however long it takes, then returns the succeeded run. A refusal or a failed run raises `AbyssError`.
 
-It runs on Python 3.10+, with one dependency, `httpx`. From async code, use `AsyncAbyss` (see [Async](#async)):
+It runs on Python 3.9+, with one dependency, `httpx`. From async code, use `AsyncAbyss` (see [Async](#async)):
 
 ```python
 async with AsyncAbyss() as abyss:

@@ -19,8 +19,12 @@ that reads its content."""
 Reread = Callable[[str], dict[str, Any]]
 """Reads a run again with ``GET /v1/runs/{id}``."""
 
+Wake = Callable[[str, Optional[float]], "Run"]
+"""Wakes a run with ``POST /v1/runs/{id}/wake``, under a ``timeout`` or none: returns the run."""
+
 AsyncDownload = Callable[[str, Optional[str]], Awaitable[tuple[int, Callable[[], Awaitable[bytes]]]]]
 AsyncReread = Callable[[str], Awaitable[dict[str, Any]]]
+AsyncWake = Callable[[str, Optional[float]], Awaitable["AsyncRun"]]
 
 RANGED_FROM = 64 * 1024 * 1024
 """A file this many bytes or larger downloads as parallel byte ranges: 64 MiB."""
@@ -183,7 +187,7 @@ class Run(_RunFields[RunFile]):
     """A run, with `/v1`'s names."""
 
     _reread: Reread | None = field(default=None, init=False, repr=False, compare=False)
-    _wake: Callable[[str, Optional[float]], Run] | None = field(default=None, init=False, repr=False, compare=False)
+    _wake: Wake | None = field(default=None, init=False, repr=False, compare=False)
 
     def wake(self, *, timeout: float | None = None) -> Run:
         """Wakes the run's files with ``POST /v1/runs/{id}/wake`` and returns the run,
@@ -211,9 +215,7 @@ class AsyncRun(_RunFields[AsyncRunFile]):
     """``Run`` from ``AsyncAbyss``: ``save()`` is awaited."""
 
     _reread: AsyncReread | None = field(default=None, init=False, repr=False, compare=False)
-    _wake: Callable[[str, Optional[float]], Awaitable[AsyncRun]] | None = field(
-        default=None, init=False, repr=False, compare=False
-    )
+    _wake: AsyncWake | None = field(default=None, init=False, repr=False, compare=False)
 
     async def wake(self, *, timeout: float | None = None) -> AsyncRun:
         """Wakes the run's files, as ``Run.wake()`` does."""
@@ -238,7 +240,7 @@ def parse_run(
     data: dict[str, Any],
     reread: Reread | None = None,
     download: Download | None = None,
-    wake: Callable[[str, Optional[float]], Run] | None = None,
+    wake: Wake | None = None,
 ) -> Run:
     """The run `/v1` sent as ``data``. With ``reread`` and ``download``, its output files
     can be read, and with ``wake`` it can be woken."""
@@ -255,7 +257,7 @@ def parse_async_run(
     data: dict[str, Any],
     reread: AsyncReread | None = None,
     download: AsyncDownload | None = None,
-    wake: Callable[[str, Optional[float]], Awaitable[AsyncRun]] | None = None,
+    wake: AsyncWake | None = None,
 ) -> AsyncRun:
     """``parse_run()`` for ``AsyncAbyss``."""
     run = AsyncRun(**_fields(data), output_files=[AsyncRunFile(**f) for f in _files(data)])

@@ -57,4 +57,10 @@ class AbyssError(Exception):
         self.run = run
 
     def __repr__(self) -> str:
-        return f"AbyssError(code={self.code!r}, message={self.message!r})"
+        return f"{type(self).__name__}(code={self.code!r}, message={self.message!r})"
+
+
+class FilesAsleepError(AbyssError):
+    """What ``run.save()`` raises when the run's files are asleep, with ``code ==
+    "files_asleep"``: ``run.wake()`` brings them back within 12 hours. While they come back,
+    ``files_waking``. It is an ``AbyssError``, carrying the run as ``run``."""

@@ -39,6 +39,7 @@
           "price": 0,
           "result": null,
           "output_files": [],
+          "files": "ready",
           "error": {
             "code": "widget_fault",
             "message": "The Widget's code exited with status 1 and wrote no output."

@@ -1,6 +1,13 @@
 /** A run's place: `succeeded` and `failed` are final. */
 export type RunStatus = "queued" | "running" | "succeeded" | "failed";
 
+/**
+ * Whether a run's files can be read now. A big run nobody has opened for six months falls
+ * asleep: its larger files sleep until `run.wake()`, then read `waking` until they are back,
+ * within 12 hours.
+ */
+export type RunFiles = "ready" | "asleep" | "waking";
+
 /** Why a run failed: `widget_fault`, `platform_fault` or `budget_exceeded`. */
 export interface RunError {
   code: string;
@@ -23,6 +30,7 @@ export interface RunData {
   price: number;
   result: unknown;
   output_files: RunFileData[];
+  files: RunFiles;
   error: RunError | null;
   created_at: string;
   started_at: string | null;

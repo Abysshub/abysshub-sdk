@@ -118,6 +118,12 @@ class Runs:
         page = client._get(client._start(timeout), url, _is_run_list, "The run list answered without data.")
         return RunList(data=[client._run(data) for data in page["data"]], has_more=page["has_more"])
 
+    def wake(self, id: str, *, timeout: float | None = None) -> Run:
+        """Wakes a run whose files are asleep, and returns it, ``waking``. A run that is not asleep is returned as it is."""
+        client = self._client
+        reply = client._send(client._start(timeout), "POST", client._wake_url(id))
+        return client._run(_expect(reply, _is_run, "The wake answered without a run."))
+
 
 class Widgets:
     """`/v1`'s Widget route."""
@@ -260,6 +266,9 @@ class _Base(Generic[R]):
 
     def _run_url(self, id: str, wait: bool) -> str:
         return f"{self.base_url}/v1/runs/{quote(id, safe='')}" + ("?wait=true" if wait else "")
+
+    def _wake_url(self, id: str) -> str:
+        return f"{self._run_url(id, False)}/wake"
 
     def _list_url(self, limit: int | None, starting_after: str | None) -> str:
         params: dict[str, str] = {}
@@ -472,8 +481,11 @@ class Abyss(_Base[Run]):
     def _reread(self, id: str) -> dict[str, Any]:
         return self._get_run(_Call(None, None), id, False)
 
+    def _wake(self, id: str, timeout: float | None) -> Run:
+        return self.runs.wake(id, timeout=timeout)
+
     def _run(self, data: dict[str, Any]) -> Run:
-        return parse_run(data, self._reread, self._download)
+        return parse_run(data, self._reread, self._download, self._wake)
 
     def _get(self, call: _Call, url: str, is_: Callable[[Any], bool], message: str) -> Any:
         """Reads ``url`` once and returns its body, when it is what the route answers."""

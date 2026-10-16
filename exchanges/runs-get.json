@@ -25,6 +25,7 @@
           "price": 0,
           "result": null,
           "output_files": [],
+          "files": "ready",
           "error": {
             "code": "widget_fault",
             "message": "The Widget stopped with an error: rate table missing."

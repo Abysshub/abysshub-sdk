@@ -1,9 +1,13 @@
-import { AbyssError } from "./error.js";
+import type { CallOptions } from "./client.js";
+import { AbyssError, FilesAsleepError } from "./error.js";
 import { nodeFS, nodePath } from "./node.js";
-import type { RunData, RunError, RunFileData, RunStatus } from "./types.js";
+import type { RunData, RunError, RunFileData, RunFiles, RunStatus } from "./types.js";
 
 /** Reads the run again with `GET /v1/runs/{id}`. */
 export type Reread = () => Promise<RunData>;
+
+/** Wakes the run with `POST /v1/runs/{id}/wake`. */
+export type Wake = (options?: CallOptions) => Promise<Run>;
 
 /** A file this many bytes or larger downloads as parallel byte ranges: 64 MiB. */
 export const RANGED_FROM = 64 * 1024 * 1024;
@@ -31,23 +35,27 @@ export class Run {
   price: number;
   result: unknown;
   output_files: RunFile[];
+  files: RunFiles;
   error: RunError | null;
   created_at: string;
   started_at: string | null;
   ended_at: string | null;
   readonly #reread: Reread;
+  readonly #wake: Wake;
 
-  constructor(data: RunData, reread: Reread) {
+  constructor(data: RunData, reread: Reread, wake: Wake) {
     this.id = data.id;
     this.widget = data.widget;
     this.status = data.status;
     this.price = data.price;
     this.result = data.result;
+    this.files = data.files;
     this.error = data.error;
     this.created_at = data.created_at;
     this.started_at = data.started_at;
     this.ended_at = data.ended_at;
     this.#reread = reread;
+    this.#wake = wake;
     this.output_files = data.output_files.map((output) => new RunFile(output, () => this.#refreshURLs()));
   }
 
@@ -60,8 +68,31 @@ export class Run {
     }
   }
 
-  /** Saves every output file under `dir`, at its `path`, and answers the paths it wrote. */
+  /**
+   * Wakes the run's files with `POST /v1/runs/{id}/wake` and answers the run, `waking` when
+   * it was asleep: its files are back within 12 hours. A run that is not asleep is answered
+   * as it is.
+   */
+  wake(options?: CallOptions): Promise<Run> {
+    return this.#wake(options);
+  }
+
+  /**
+   * Saves every output file under `dir`, at its `path`, and answers the paths it wrote.
+   * A run whose files are asleep or waking raises `FilesAsleepError` before any download.
+   */
   async save(dir: string): Promise<string[]> {
+    if (this.files === "asleep" || this.files === "waking") {
+      throw new FilesAsleepError({
+        code: `files_${this.files}`,
+        message:
+          this.files === "asleep"
+            ? `The files of run ${this.id} are asleep. Call run.wake(): they are back within 12 hours.`
+            : `The files of run ${this.id} are waking after run.wake(): they are back within 12 hours.`,
+        run_id: this.id,
+        run: this,
+      });
+    }
     const path = await nodePath();
     const saved: string[] = [];
     for (const output of this.output_files) {

@@ -62,6 +62,8 @@ export function perform(abyss, call, input) {
       return abyss.runs.get(call.id, { wait: options.wait, ...waiting });
     case "runs.list":
       return abyss.runs.list({ limit: options.limit, startingAfter: options.starting_after, ...waiting });
+    case "runs.wake":
+      return abyss.runs.wake(call.id, waiting);
     case "widgets.get":
       return abyss.widgets.get(call.widget, waiting);
     case "uploads.create":

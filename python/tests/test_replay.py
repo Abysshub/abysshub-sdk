@@ -10,9 +10,11 @@ import pytest
 from caller import caller_input, perform, perform_async, with_files
 from fake_server import Replay, load_exchanges, pattern
 
-from abysshub import Abyss, AbyssError, AsyncAbyss, AsyncRun, Run
+from abysshub import Abyss, AbyssError, AsyncAbyss, AsyncRun, FilesAsleepError, Run
 
 KEY = "abyss_sk_fake_for_tests"
+FILES_ASLEEP = {"files_asleep", "files_waking"}
+"""The codes ``run.save()`` raises as ``FilesAsleepError``."""
 RECORDINGS = load_exchanges()
 
 
@@ -33,19 +35,26 @@ def assert_fields(actual: Any, expected: Any, where: str) -> None:
         assert actual == expected, where
 
 
-def call_sync(base: str, call: dict[str, Any], dir: Path, files: dict[str, str]) -> tuple[Any, Any, Any]:
-    """The recorded call through ``Abyss``: its value, its error and what ``run.save()`` answered."""
+def call_sync(base: str, call: dict[str, Any], dir: Path, files: dict[str, str]) -> tuple[Any, Any, Any, Any]:
+    """The recorded call through ``Abyss``: its value, its error, what ``run.save()``
+    answered or raised, and what ``run.wake()`` answered."""
     save = call.get("save")
     with Abyss(api_key=KEY, base_url=base, **(call.get("client") or {})) as abyss:
         try:
             value, error = perform(abyss, call, caller_input(call.get("input") or {}, dir, files)), None
         except AbyssError as raised:
             value, error = None, raised
-        saved = value.save(dir / save) if save and isinstance(value, Run) else None
-    return value, error, saved
+        saved: Any = None
+        if save and isinstance(value, Run):
+            try:
+                saved = value.save(dir / save)
+            except AbyssError as raised:
+                saved = raised
+        woken = value.wake() if call.get("wake") and isinstance(value, Run) else None
+    return value, error, saved, woken
 
 
-async def call_async(base: str, call: dict[str, Any], dir: Path, files: dict[str, str]) -> tuple[Any, Any, Any]:
+async def call_async(base: str, call: dict[str, Any], dir: Path, files: dict[str, str]) -> tuple[Any, Any, Any, Any]:
     """The recorded call through ``AsyncAbyss``."""
     save = call.get("save")
     async with AsyncAbyss(api_key=KEY, base_url=base, **(call.get("client") or {})) as abyss:
@@ -53,8 +62,14 @@ async def call_async(base: str, call: dict[str, Any], dir: Path, files: dict[str
             value, error = await perform_async(abyss, call, caller_input(call.get("input") or {}, dir, files)), None
         except AbyssError as raised:
             value, error = None, raised
-        saved = await value.save(dir / save) if save and isinstance(value, AsyncRun) else None
-    return value, error, saved
+        saved: Any = None
+        if save and isinstance(value, AsyncRun):
+            try:
+                saved = await value.save(dir / save)
+            except AbyssError as raised:
+                saved = raised
+        woken = await value.wake() if call.get("wake") and isinstance(value, AsyncRun) else None
+    return value, error, saved, woken
 
 
 @pytest.mark.parametrize("client", ["Abyss", "AsyncAbyss"])
@@ -67,13 +82,15 @@ def test_replay(recording: dict[str, Any], client: str) -> None:
     try:
         with with_files(files) as dir:
             if client == "Abyss":
-                value, error, saved = call_sync(server.base, call, dir, files)
+                value, error, saved, woken = call_sync(server.base, call, dir, files)
             else:
-                value, error, saved = asyncio.run(call_async(server.base, call, dir, files))
+                value, error, saved, woken = asyncio.run(call_async(server.base, call, dir, files))
+            outcome = recording["outcome"]
+            if isinstance(saved, AbyssError) and "save_error" not in outcome:
+                raise saved
 
             assert server.problems == []
             assert server.remaining() == 0, "every recorded request was sent"
-            outcome = recording["outcome"]
             if "run" in outcome:
                 assert isinstance(value, (Run, AsyncRun)), f"expected a run, got {error!r}"
                 assert_fields(value, outcome["run"], "run")
@@ -89,6 +106,13 @@ def test_replay(recording: dict[str, Any], client: str) -> None:
                     assert error.run is None
                 else:
                     assert_fields(error.run, run, "error.run")
+            if "save_error" in outcome:
+                assert isinstance(saved, AbyssError), f"expected run.save() to raise, got {saved!r}"
+                assert isinstance(saved, FilesAsleepError) == (outcome["save_error"]["code"] in FILES_ASLEEP)
+                assert_fields(saved, outcome["save_error"], "save_error")
+            if "woken" in outcome:
+                assert isinstance(woken, (Run, AsyncRun)), f"expected run.wake() to return a run, got {woken!r}"
+                assert_fields(woken, outcome["woken"], "woken")
             if "saved" in outcome:
                 assert saved == [dir / save / path for path in outcome["saved"]], "run.save() returns the paths it wrote"
                 # A saved ``pattern`` is a whole file of that many generated bytes.

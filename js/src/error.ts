@@ -55,3 +55,15 @@ export class AbyssError extends Error {
     this.run = fields.run ?? null;
   }
 }
+
+/**
+ * What `run.save()` raises when the run's files are asleep, with `code: "files_asleep"`:
+ * `run.wake()` brings them back within 12 hours. While they come back, `files_waking`.
+ * It is an `AbyssError`, carrying the run as `run`.
+ */
+export class FilesAsleepError extends AbyssError {
+  constructor(fields: AbyssErrorFields) {
+    super(fields);
+    this.name = "FilesAsleepError";
+  }
+}

@@ -212,7 +212,7 @@
       "post": {
         "operationId": "createRun",
         "summary": "Press: run a Widget and wait for its ending",
-        "description": "Starts one run and holds until it ends: `200`, `Location` and the other headers at once, then a space every 2 seconds, then the run once `status` is `succeeded` or `failed`. Read `status` to learn how it ended. After an hour the hold answers the run as it is, `running`; read it again at its `Location` with `?wait=true`.\n\nThe body is JSON, or a form (`multipart/form-data`) with one part per Field, so a local file goes in the same call. A form always holds.\n\nWith `\"wait\": false` in a JSON body, or when the API's holds are all taken, the press answers `202` at once with the run `queued`.\n\nThe checks run in this order, and every refusal comes before the charge, so a refused press costs nothing: the key, the Widget, the `Idempotency-Key`, the body and the input, a form's files and the URLs your file Fields name, `max_price`, the key's Spend Cap, then your wallet.\n\nThe run costs the Widget's `price` from `GET /v1/widgets/{id}`. A failed run is refunded.",
+        "description": "Starts one run and holds until it ends: `200`, `Location` and the other headers at once, then a space every 2 seconds, then the run once `status` is `succeeded` or `failed`. Read `status` to learn how it ended. After an hour the hold answers the run as it is, `running`; read it again at its `Location` with `?wait=true`.\n\nThe body is JSON, or a form (`multipart/form-data`) with one part per Field, so a local file goes in the same call. A form always holds.\n\nWith `\"wait\": false` in a JSON body, or when the API's holds are all taken, the press answers `202` at once with the run `queued`.\n\nThe checks run in this order, and every refusal comes before the charge, so a refused press costs nothing: the key, the Widget, the `Idempotency-Key`, the body and the input, a form's files and the URLs your file Fields name, `max_price`, the key's Spend Cap, your wallet, then that each upload your file Fields name is still there.\n\nThe run costs the Widget's `price` from `GET /v1/widgets/{id}`. A failed run is refunded.",
         "parameters": [
           {
             "$ref": "#/components/parameters/WidgetId"
@@ -278,6 +278,7 @@
                       "url": "https://abysshub-outputs.s3.amazonaws.com/runs/9201/output/output.json?X-Amz-Signature=…"
                     }
                   ],
+                  "files": "ready",
                   "error": null,
                   "created_at": "2026-10-04T09:15:02Z",
                   "started_at": "2026-10-04T09:15:04Z",
@@ -311,6 +312,7 @@
                   "price": 3.1,
                   "result": null,
                   "output_files": [],
+                  "files": "ready",
                   "error": null,
                   "created_at": "2026-10-04T09:15:02Z",
                   "started_at": null,
@@ -381,6 +383,7 @@
                       "price": 3.1,
                       "result": null,
                       "output_files": [],
+                      "files": "ready",
                       "error": null,
                       "created_at": "2026-10-04T09:15:02Z",
                       "started_at": "2026-10-04T09:15:04Z",
@@ -455,6 +458,76 @@
                       "url": "https://abysshub-outputs.s3.amazonaws.com/runs/9201/output/output.json?X-Amz-Signature=…"
                     }
                   ],
+                  "files": "ready",
+                  "error": null,
+                  "created_at": "2026-10-04T09:15:02Z",
+                  "started_at": "2026-10-04T09:15:04Z",
+                  "ended_at": "2026-10-04T09:15:31Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/runs/{id}/wake": {
+      "post": {
+        "operationId": "wakeRun",
+        "summary": "Wake a run whose files are asleep",
+        "description": "A big run nobody has opened for six months falls asleep: its larger files sleep in deep storage, and the run reads `\"files\": \"asleep\"`. Waking it brings them back within 12 hours. The run reads `waking` until then and `ready` once they are, and you get an email when they are. Waking a run that is not asleep changes nothing and answers the run as it is.\n\nA press that names an upload id of an asleep run's input wakes that run too, and is refused with `run_files_waking`.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RunId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The run, `waking` when it was asleep, otherwise as it is.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Run"
+                },
+                "example": {
+                  "id": "run_8fK2mQx7Lp3Rz9Tb4Wc6Yd1N",
+                  "widget": "widget_1660",
+                  "status": "succeeded",
+                  "price": 3.1,
+                  "result": {
+                    "bars": 12
+                  },
+                  "output_files": [
+                    {
+                      "path": "charts/a.png",
+                      "size": 48213,
+                      "content_type": "image/png",
+                      "url": "https://abysshub-outputs.s3.amazonaws.com/runs/9201/output/charts/a.png?X-Amz-Signature=…"
+                    },
+                    {
+                      "path": "output.json",
+                      "size": 12,
+                      "content_type": "application/json",
+                      "url": "https://abysshub-outputs.s3.amazonaws.com/runs/9201/output/output.json?X-Amz-Signature=…"
+                    }
+                  ],
+                  "files": "waking",
                   "error": null,
                   "created_at": "2026-10-04T09:15:02Z",
                   "started_at": "2026-10-04T09:15:04Z",
@@ -710,7 +783,7 @@
         }
       },
       "Conflict": {
-        "description": "`idempotency_key_in_use`: the first press with this `Idempotency-Key` is still being handled. Wait the `Retry-After` seconds, then send the same request again to get its run.",
+        "description": "`idempotency_key_in_use`: the first press with this `Idempotency-Key` is still being handled. Wait the `Retry-After` seconds, then send the same request again to get its run. `run_files_waking`: an upload the input names belongs to one of your runs whose files are asleep, and that run is waking now. Nothing was charged; press again after the `Retry-After` seconds.",
         "headers": {
           "Request-Id": {
             "$ref": "#/components/headers/RequestId"
@@ -1074,6 +1147,7 @@
           "price",
           "result",
           "output_files",
+          "files",
           "error",
           "created_at",
           "started_at",
@@ -1125,6 +1199,24 @@
             "items": {
               "$ref": "#/components/schemas/RunFile"
             }
+          },
+          "files": {
+            "type": "string",
+            "description": "Whether the run's files can be read now. A big run nobody has opened for six months falls asleep: its larger files sleep in deep storage until you wake the run (`POST /v1/runs/{id}/wake`), and the rest of it, `result` included, reads as before. Reading a run never wakes it, and `output_files` keeps its shape.",
+            "oneOf": [
+              {
+                "const": "ready",
+                "description": "Every file can be read."
+              },
+              {
+                "const": "asleep",
+                "description": "Its larger files are asleep and their `url`s do not open until the run is woken."
+              },
+              {
+                "const": "waking",
+                "description": "Being woken: its files come back within 12 hours, and it reads `ready` once they have."
+              }
+            ]
           },
           "error": {
             "description": "Why the run failed, once it has; null otherwise.",
@@ -1373,6 +1465,11 @@
             "const": "idempotency_key_in_use",
             "x-status": 409,
             "description": "Wait the `Retry-After` seconds, then send the same request with the same `Idempotency-Key` again to get its run."
+          },
+          {
+            "const": "run_files_waking",
+            "x-status": 409,
+            "description": "Wait the `Retry-After` seconds, then press again: the upload in the Field `param` names is an input of one of your runs whose files are asleep, and that run is waking now (`POST /v1/runs/{id}/wake`)."
           },
           {
             "const": "insufficient_funds",

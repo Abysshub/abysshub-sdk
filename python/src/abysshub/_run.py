@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Generic, Literal, Optional, TypeVar
 
-from ._error import AbyssError
+from ._error import AbyssError, FilesAsleepError
 
 # An alias is evaluated at import, where Python 3.9 has no `X | None`: hence Optional.
 Download = Callable[[str, Optional[str]], tuple[int, Callable[[], bytes]]]
@@ -19,8 +19,12 @@ that reads its content."""
 Reread = Callable[[str], dict[str, Any]]
 """Reads a run again with ``GET /v1/runs/{id}``."""
 
+Wake = Callable[[str, Optional[float]], "Run"]
+"""Wakes a run with ``POST /v1/runs/{id}/wake``, under a ``timeout`` or none: returns the run."""
+
 AsyncDownload = Callable[[str, Optional[str]], Awaitable[tuple[int, Callable[[], Awaitable[bytes]]]]]
 AsyncReread = Callable[[str], Awaitable[dict[str, Any]]]
+AsyncWake = Callable[[str, Optional[float]], Awaitable["AsyncRun"]]
 
 RANGED_FROM = 64 * 1024 * 1024
 """A file this many bytes or larger downloads as parallel byte ranges: 64 MiB."""
@@ -30,6 +34,11 @@ RANGES = 16
 
 RunStatus = Literal["queued", "running", "succeeded", "failed"]
 """A run's place: ``succeeded`` and ``failed`` are final."""
+
+RunFiles = Literal["ready", "asleep", "waking"]
+"""Whether a run's files can be read now. A big run nobody has opened for six months falls
+asleep: its larger files sleep until ``run.wake()``, then read ``waking`` until they are
+back, within 12 hours."""
 
 
 @dataclass
@@ -146,6 +155,7 @@ class _RunFields(Generic[F]):
     created_at: str
     started_at: str | None
     ended_at: str | None
+    files: RunFiles = "ready"
 
     def _targets(self, dir: str | os.PathLike[str]) -> list[tuple[F, Path]]:
         """Each output file with the path it is saved at under ``dir``, refusing one that leaves it."""
@@ -177,9 +187,21 @@ class Run(_RunFields[RunFile]):
     """A run, with `/v1`'s names."""
 
     _reread: Reread | None = field(default=None, init=False, repr=False, compare=False)
+    _wake: Wake | None = field(default=None, init=False, repr=False, compare=False)
+
+    def wake(self, *, timeout: float | None = None) -> Run:
+        """Wakes the run's files with ``POST /v1/runs/{id}/wake`` and returns the run,
+        ``waking`` when it was asleep: its files are back within 12 hours. A run that is not
+        asleep is returned as it is."""
+        if self._wake is None:
+            raise _no_client_to_wake(self.id)
+        return self._wake(self.id, timeout)
 
     def save(self, dir: str | os.PathLike[str]) -> list[Path]:
-        """Saves every output file under ``dir``, at its ``path``, and returns the paths it wrote."""
+        """Saves every output file under ``dir``, at its ``path``, and returns the paths it
+        wrote. A run whose files are asleep or waking raises ``FilesAsleepError`` before any
+        download."""
+        _check_awake(self)
         return [output.save(target) for output, target in self._targets(dir)]
 
     def _refresh_urls(self) -> None:
@@ -193,9 +215,19 @@ class AsyncRun(_RunFields[AsyncRunFile]):
     """``Run`` from ``AsyncAbyss``: ``save()`` is awaited."""
 
     _reread: AsyncReread | None = field(default=None, init=False, repr=False, compare=False)
+    _wake: AsyncWake | None = field(default=None, init=False, repr=False, compare=False)
+
+    async def wake(self, *, timeout: float | None = None) -> AsyncRun:
+        """Wakes the run's files, as ``Run.wake()`` does."""
+        if self._wake is None:
+            raise _no_client_to_wake(self.id)
+        return await self._wake(self.id, timeout)
 
     async def save(self, dir: str | os.PathLike[str]) -> list[Path]:
-        """Saves every output file under ``dir``, at its ``path``, and returns the paths it wrote."""
+        """Saves every output file under ``dir``, at its ``path``, and returns the paths it
+        wrote. A run whose files are asleep or waking raises ``FilesAsleepError`` before any
+        download."""
+        _check_awake(self)
         return [await output.save(target) for output, target in self._targets(dir)]
 
     async def _refresh_urls(self) -> None:
@@ -204,10 +236,17 @@ class AsyncRun(_RunFields[AsyncRunFile]):
             self._refreshed(await self._reread(self.id))
 
 
-def parse_run(data: dict[str, Any], reread: Reread | None = None, download: Download | None = None) -> Run:
-    """The run `/v1` sent as ``data``. With ``reread`` and ``download``, its output files can be read."""
+def parse_run(
+    data: dict[str, Any],
+    reread: Reread | None = None,
+    download: Download | None = None,
+    wake: Wake | None = None,
+) -> Run:
+    """The run `/v1` sent as ``data``. With ``reread`` and ``download``, its output files
+    can be read, and with ``wake`` it can be woken."""
     run = Run(**_fields(data), output_files=[RunFile(**f) for f in _files(data)])
     run._reread = reread
+    run._wake = wake
     for output in run.output_files:
         output._download = download
         output._refresh = run._refresh_urls
@@ -215,11 +254,15 @@ def parse_run(data: dict[str, Any], reread: Reread | None = None, download: Down
 
 
 def parse_async_run(
-    data: dict[str, Any], reread: AsyncReread | None = None, download: AsyncDownload | None = None
+    data: dict[str, Any],
+    reread: AsyncReread | None = None,
+    download: AsyncDownload | None = None,
+    wake: AsyncWake | None = None,
 ) -> AsyncRun:
     """``parse_run()`` for ``AsyncAbyss``."""
     run = AsyncRun(**_fields(data), output_files=[AsyncRunFile(**f) for f in _files(data)])
     run._reread = reread
+    run._wake = wake
     for output in run.output_files:
         output._download = download
         output._refresh = run._refresh_urls
@@ -238,6 +281,7 @@ def _fields(data: dict[str, Any]) -> dict[str, Any]:
         "created_at": data.get("created_at", ""),
         "started_at": data.get("started_at"),
         "ended_at": data.get("ended_at"),
+        "files": data.get("files", "ready"),
     }
 
 
@@ -250,6 +294,21 @@ def _files(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _no_client(path: str) -> AbyssError:
     return AbyssError("unexpected_response", f"The output file {path} has no client to download it.")
+
+
+def _check_awake(run: Run | AsyncRun) -> None:
+    """Raises ``FilesAsleepError`` when the run's files are asleep or waking."""
+    if run.files == "asleep":
+        message = f"The files of run {run.id} are asleep. Call run.wake(): they are back within 12 hours."
+    elif run.files == "waking":
+        message = f"The files of run {run.id} are waking after run.wake(): they are back within 12 hours."
+    else:
+        return
+    raise FilesAsleepError(f"files_{run.files}", message, run_id=run.id, run=run)
+
+
+def _no_client_to_wake(id: str) -> AbyssError:
+    return AbyssError("unexpected_response", f"The run {id} has no client to wake it.", run_id=id)
 
 
 def _downloaded(path: str, status: int, content: bytes) -> bytes:

@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
-import { Abyss, AbyssError } from "../dist/index.js";
+import { Abyss, AbyssError, FilesAsleepError } from "../dist/index.js";
 import { Run } from "../dist/run.js";
 import { callerInput, perform, timeoutOnceHeld, withFiles } from "./caller.js";
 import { loadExchanges, pattern, replay } from "./fake-server.js";
 
 const KEY = "abyss_sk_fake_for_tests";
+
+/** The codes `run.save()` raises as `FilesAsleepError`. */
+const FILES_ASLEEP = new Set(["files_asleep", "files_waking"]);
 
 // The fields `expected` names, however deep: a list must have its length, and an
 // object at least the fields it names.
@@ -25,7 +28,7 @@ function assertFields(actual, expected, where) {
 }
 
 for (const recording of await loadExchanges()) {
-  const { method = "run", input = {}, files = {}, save, client = {} } = recording.call;
+  const { method = "run", input = {}, files = {}, save, wake, client = {} } = recording.call;
   test(`${method}(): ${recording.name}`, async () => {
     const server = await replay(recording, { key: KEY });
     try {
@@ -38,7 +41,13 @@ for (const recording of await loadExchanges()) {
           (value) => ({ value }),
           (error) => ({ error }),
         );
-        const saved = save && outcome.value ? await outcome.value.save(join(dir, save)) : null;
+        const saving =
+          save && outcome.value
+            ? await outcome.value.save(join(dir, save)).then((paths) => ({ paths }), (error) => ({ error }))
+            : {};
+        if (saving.error && !recording.outcome.save_error) throw saving.error;
+        const saved = saving.paths ?? null;
+        const woken = wake && outcome.value ? await outcome.value.wake() : null;
 
         assert.deepEqual(server.problems, []);
         assert.equal(server.remaining(), 0, "every recorded request was sent");
@@ -54,6 +63,16 @@ for (const recording of await loadExchanges()) {
           assertFields(outcome.error, fields, "error");
           if (run === null) assert.equal(outcome.error.run, null);
           else assertFields(outcome.error.run, run, "error.run");
+        }
+        if (recording.outcome.save_error) {
+          const { code } = recording.outcome.save_error;
+          assert.ok(saving.error instanceof AbyssError, `expected run.save() to raise, got ${saving.paths}`);
+          assert.equal(saving.error instanceof FilesAsleepError, FILES_ASLEEP.has(code), "the files-asleep error");
+          assertFields(saving.error, recording.outcome.save_error, "save_error");
+        }
+        if (recording.outcome.woken) {
+          assert.ok(woken instanceof Run, `expected run.wake() to answer a run, got ${woken}`);
+          assertFields(woken, recording.outcome.woken, "woken");
         }
         if (recording.outcome.saved) {
           const expected = Object.keys(recording.outcome.saved).map((path) => join(dir, save, path));

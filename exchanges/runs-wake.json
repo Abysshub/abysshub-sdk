@@ -1,0 +1,65 @@
+{
+  "description": "runs.wake() on a run that is not asleep changes nothing and answers the run as it is, ready.",
+  "call": {
+    "method": "runs.wake",
+    "id": "run_7Rr6Ee5Aa4Dd3Yy2Nn1Oo0Ww"
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/runs/run_7Rr6Ee5Aa4Dd3Yy2Nn1Oo0Ww/wake",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_R1e2A3d4Y5w6A7k8E9n0O1p2"
+        },
+        "body": {
+          "id": "run_7Rr6Ee5Aa4Dd3Yy2Nn1Oo0Ww",
+          "widget": "widget_1660",
+          "status": "succeeded",
+          "price": 3.1,
+          "result": {
+            "frames": 2
+          },
+          "output_files": [
+            {
+              "path": "render/a.mp4",
+              "size": 41943040,
+              "content_type": "video/mp4",
+              "url": "{base}/storage/abysshub-outputs/runs/4417/output/render/a.mp4?X-Amz-Signature=asleep"
+            },
+            {
+              "path": "render/b.mp4",
+              "size": 20971520,
+              "content_type": "video/mp4",
+              "url": "{base}/storage/abysshub-outputs/runs/4417/output/render/b.mp4?X-Amz-Signature=asleep"
+            },
+            {
+              "path": "output.json",
+              "size": 12,
+              "content_type": "application/json",
+              "url": "{base}/storage/abysshub-outputs/runs/4417/output/output.json?X-Amz-Signature=asleep"
+            }
+          ],
+          "files": "ready",
+          "error": null,
+          "created_at": "2026-03-02T09:15:02Z",
+          "started_at": "2026-03-02T09:15:04Z",
+          "ended_at": "2026-03-02T09:16:31Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "run": {
+      "id": "run_7Rr6Ee5Aa4Dd3Yy2Nn1Oo0Ww",
+      "status": "succeeded",
+      "files": "ready"
+    }
+  }
+}

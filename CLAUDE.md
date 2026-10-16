@@ -4,6 +4,7 @@ The official libraries for the Abyss API (`/v1`): **`abysshub`** for JavaScript 
 
 - **`js/`** is the npm package `abysshub`: TypeScript, shipped as ESM with types.
 - **`python/`** is the PyPI package `abysshub`: Python, with plain dataclasses and `py.typed`.
+- **`n8n/`** is the n8n community node `n8n-nodes-abysshub`: one node, **Abyss**, calling `/v1` through n8n's own HTTP helper, with no runtime dependencies (n8n's verified-node rules). Not published yet (`"private": true`); `npm test` there replays the exchanges its operations make and runs n8n's scanner rules.
 - **`exchanges/`** holds the recorded exchanges. Each one is a JSON file of requests and responses, including chunks with leading spaces and cuts. A tiny fake server replays them. **Both libraries pass the same exchanges, with the same outcome.**
 - **`contract/openapi.json`** is `/v1`'s contract, copied from the api. Every recorded body is validated against it. It is never edited here (see "The contract file").
 - **`live/`** is the nightly live run against dev (see "The nightly live run"): `live.mjs` and `live.py` make the same checks through each library, and `widget/` is the source of the probe Widget they press.

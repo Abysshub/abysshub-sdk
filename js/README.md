@@ -58,7 +58,7 @@ const run = await abyss.run(widget, input, { maxPrice, idempotencyKey, timeout, 
 
 The press holds until the run ends. When the hold ends early (a deploy cuts it, the network goes down, the API's holds are all taken, or an hour passes), `run()` re-attaches with `GET <Location>?wait=true` until the run ends. Re-attaching has no limit and is not a retry. Connecting has 10 s, and 30 s of silence counts as a cut.
 
-A **run** has `/v1`'s fields: `id`, `widget`, `status` (`queued`, `running`, `succeeded` or `failed`), `price`, `result`, `output_files`, `error`, `created_at`, `started_at` and `ended_at`.
+A **run** has `/v1`'s fields: `id`, `widget`, `status` (`queued`, `running`, `succeeded` or `failed`), `price`, `result`, `output_files`, `files` (`ready`, `asleep` or `waking`, see [Old big runs](#old-big-runs)), `error`, `created_at`, `started_at` and `ended_at`.
 
 ## The routes
 
@@ -69,6 +69,7 @@ Under `run()` there is one method per route. Each takes `timeout` and `signal` i
 | `abyss.runs.create(widget, input, { maxPrice?, idempotencyKey? })` | `POST /v1/widgets/{widget}/runs` with `"wait": false` | the run, `queued`, at once |
 | `abyss.runs.get(id, { wait? })` | `GET /v1/runs/{id}`, with `?wait=true` when `wait` | the run |
 | `abyss.runs.list({ limit?, startingAfter? })` | `GET /v1/runs?limit=&starting_after=` | `{ data, has_more }`, newest first |
+| `abyss.runs.wake(id)` | `POST /v1/runs/{id}/wake` | the run, `waking` when it was asleep |
 | `abyss.widgets.get(widget)` | `GET /v1/widgets/{widget}` | `{ id, name, description, url, price, free_runs, input_schema }` |
 | `abyss.uploads.create(widget, { field, filename, size? })` | `POST /v1/widgets/{widget}/uploads` | `{ id, upload: { url, fields } }` |
 | `abyss.key()` | `GET /v1/key` | `{ name, key, user, spend_cap, spent_this_month, created_at }` |
@@ -105,9 +106,27 @@ const paths = await run.save("output"); // ["output/charts/a.png", "output/outpu
 - **`await run.save(dir)`** writes every output file under `dir` at its `path`, making folders, and answers the paths it wrote.
 - **Each of `run.output_files`** has `await f.save(path)` and `await f.read()`, which answers a `Uint8Array`. An expired URL is refreshed once, by reading the run again with `GET /v1/runs/{id}`. A file of 64 MiB or more downloads as 16 parallel byte ranges of its one URL.
 
+## Old big runs
+
+A big run (its files total 50 MiB or more) that nobody has opened for six months falls asleep: its larger files sleep in deep storage, and the run reads `files: "asleep"`. Its `result` reads as before, and reading the run never wakes it. Most callers never meet one.
+
+```js
+import { FilesAsleepError } from "abysshub";
+
+try {
+  await run.save("output");
+} catch (error) {
+  if (!(error instanceof FilesAsleepError)) throw error;
+  if (error.code === "files_asleep") await run.wake(); // back within 12 hours, with an email
+}
+```
+
+- **`await run.wake()`** (or `abyss.runs.wake(id)`) calls `POST /v1/runs/{id}/wake` and answers the run, `files: "waking"`. Its files are back within 12 hours, when it reads `ready`. Waking a run that is not asleep changes nothing.
+- **`await run.save(dir)`** on a run that is `asleep` or `waking` raises `FilesAsleepError`, with `code` `files_asleep` or `files_waking`, before any download.
+
 ## Errors
 
-A refusal, a failed run, a timeout and a lost connection all raise one class, `AbyssError`. There is no class per status: branch on `code`.
+A refusal, a failed run, a timeout and a lost connection all raise one class, `AbyssError`. There is no class per status: branch on `code`. Its one subclass, `FilesAsleepError`, is what `run.save()` raises on an old big run (see [Old big runs](#old-big-runs)).
 
 | Field | |
 |---|---|
@@ -122,9 +141,9 @@ A refusal, a failed run, a timeout and a lost connection all raise one class, `A
 | `run_id` | the id of the run the call started or read, once the press's `Location` or a run body named it, else `null` |
 | `run` | the run, for a failed run or a timeout, else `null` |
 
-- **Refusals:** `invalid_api_key` (401), `not_found` (404), `invalid_request`, `invalid_input`, `held_input_*`, `input_unreachable` and `idempotency_key_reused` (422), `insufficient_funds` (402), `spend_cap_reached` and `price_above_max` (400), `idempotency_key_in_use` (409), `rate_limited` (429), `server_error` (500).
+- **Refusals:** `invalid_api_key` (401), `not_found` (404), `invalid_request`, `invalid_input`, `held_input_*`, `input_unreachable` and `idempotency_key_reused` (422), `insufficient_funds` (402), `spend_cap_reached` and `price_above_max` (400), `idempotency_key_in_use` and `run_files_waking` (409), `rate_limited` (429), `server_error` (500).
 - **A failed run:** `widget_fault`, `platform_fault` or `budget_exceeded`, with the run as `run`.
-- **Library-only codes:** `timeout` (see [Timeouts](#timeouts)); `connection_error`, when the connection still drops before any answer after the retries, with the cause as `cause`; and `unexpected_response`, when an answer is not what the route sends.
+- **Library-only codes:** `timeout` (see [Timeouts](#timeouts)); `connection_error`, when the connection still drops before any answer after the retries, with the cause as `cause`; `unexpected_response`, when an answer is not what the route sends; and `files_asleep` and `files_waking`, raised by `run.save()` as `FilesAsleepError`.
 
 ## Retries
 

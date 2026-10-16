@@ -78,6 +78,8 @@ export interface Runs {
   get(id: string, options?: GetRunOptions): Promise<Run>;
   /** Answers a page of runs, newest first. */
   list(options?: ListRunsOptions): Promise<RunList<Run>>;
+  /** Wakes a run whose files are asleep, and answers it, `waking`. A run that is not asleep is answered as it is. */
+  wake(id: string, options?: CallOptions): Promise<Run>;
 }
 
 export interface Widgets {
@@ -146,6 +148,11 @@ export class Abyss {
       get: (id, options = {}) =>
         this.#call(options, async (call) => this.#run(await this.#getRun(call, id, options.wait ?? false))),
       list: (options = {}) => this.#call(options, (call) => this.#listRuns(call, options)),
+      wake: (id, options = {}) =>
+        this.#call(options, async (call) => {
+          const reply = await this.#send(call, "POST", `${this.baseURL}/v1/runs/${encodeURIComponent(id)}/wake`);
+          return this.#run(expect(reply, isRun, "The wake answered without a run."));
+        }),
     };
     this.widgets = {
       get: (widget, options = {}) =>
@@ -305,7 +312,11 @@ export class Abyss {
   }
 
   #run(data: RunData): Run {
-    return new Run(data, () => this.#getRun(newCall(null), data.id, false));
+    return new Run(
+      data,
+      () => this.#getRun(newCall(null), data.id, false),
+      (options) => this.runs.wake(data.id, options),
+    );
   }
 
   #widgetURL(widget: string): string {

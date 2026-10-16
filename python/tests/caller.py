@@ -46,6 +46,8 @@ def perform(abyss: Abyss, call: dict[str, Any], input: dict[str, Any]) -> Any:
         return abyss.runs.get(call["id"], **options)
     if method == "runs.list":
         return abyss.runs.list(**options)
+    if method == "runs.wake":
+        return abyss.runs.wake(call["id"], **options)
     if method == "widgets.get":
         return abyss.widgets.get(call["widget"], **options)
     if method == "uploads.create":
@@ -67,6 +69,8 @@ async def perform_async(abyss: AsyncAbyss, call: dict[str, Any], input: dict[str
         return await abyss.runs.get(call["id"], **options)
     if method == "runs.list":
         return await abyss.runs.list(**options)
+    if method == "runs.wake":
+        return await abyss.runs.wake(call["id"], **options)
     if method == "widgets.get":
         return await abyss.widgets.get(call["widget"], **options)
     if method == "uploads.create":

@@ -69,6 +69,12 @@ class AsyncRuns:
         page = await client._get(client._start(timeout), url, _is_run_list, "The run list answered without data.")
         return AsyncRunList(data=[client._run(data) for data in page["data"]], has_more=page["has_more"])
 
+    async def wake(self, id: str, *, timeout: float | None = None) -> AsyncRun:
+        """Wakes a run whose files are asleep, and returns it, ``waking``. A run that is not asleep is returned as it is."""
+        client = self._client
+        reply = await client._send(client._start(timeout), "POST", client._wake_url(id))
+        return client._run(_expect(reply, _is_run, "The wake answered without a run."))
+
 
 class AsyncWidgets:
     """`/v1`'s Widget route, awaited."""
@@ -241,8 +247,11 @@ class AsyncAbyss(_Base[AsyncRun]):
     async def _reread(self, id: str) -> dict[str, Any]:
         return await self._get_run(_Call(None, None), id, False)
 
+    async def _wake(self, id: str, timeout: float | None) -> AsyncRun:
+        return await self.runs.wake(id, timeout=timeout)
+
     def _run(self, data: dict[str, Any]) -> AsyncRun:
-        return parse_async_run(data, self._reread, self._download)
+        return parse_async_run(data, self._reread, self._download, self._wake)
 
     async def _get(self, call: _Call, url: str, is_: Callable[[Any], bool], message: str) -> Any:
         """Reads ``url`` once and returns its body, when it is what the route answers."""

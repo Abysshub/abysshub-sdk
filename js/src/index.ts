@@ -11,7 +11,7 @@ export {
   type Uploads,
   type Widgets,
 } from "./client.js";
-export { AbyssError, type AbyssErrorFields } from "./error.js";
+export { AbyssError, FilesAsleepError, type AbyssErrorFields } from "./error.js";
 export { file, type FileData, type FileOptions, type InputFile } from "./files.js";
 export type { Run, RunFile } from "./run.js";
-export type { Input, Key, RunError, RunList, RunStatus, Upload, Widget } from "./types.js";
+export type { Input, Key, RunError, RunFiles, RunList, RunStatus, Upload, Widget } from "./types.js";

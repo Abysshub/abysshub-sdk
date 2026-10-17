@@ -83,11 +83,8 @@ export async function runWidget(
 		run = expectRun(ctx, itemIndex, answer);
 	}
 	if (run.status === 'failed') {
-		const requestId = answer.headers['request-id'];
 		throw new NodeOperationError(ctx.getNode(), run.error?.message ?? 'The run failed.', {
-			description: [run.error?.code ?? 'platform_fault', `run ${run.id}`, requestId && `request ${String(requestId)}`]
-				.filter(Boolean)
-				.join(' · '),
+			description: describe(run.error?.code ?? 'platform_fault', run.id, answer.headers['request-id']),
 			itemIndex,
 		});
 	}
@@ -219,15 +216,19 @@ function refusal(ctx: IExecuteFunctions, itemIndex: number, answer: Answer): Nod
 	const body = isObject(answer.body) ? answer.body : {};
 	const error = isObject(body.error) ? body.error : {};
 	const requestId = typeof body.request_id === 'string' ? body.request_id : answer.headers['request-id'];
-	const description = [error.code, requestId === undefined ? undefined : `request ${String(requestId)}`]
-		.filter((part) => typeof part === 'string')
-		.join(' · ');
+	const description = describe(error.code, undefined, requestId);
 	return new NodeApiError(ctx.getNode(), body as JsonObject, {
 		message: typeof error.message === 'string' ? error.message : `The Abyss API answered ${answer.status}.`,
 		...(description === '' ? {} : { description }),
 		httpCode: String(answer.status),
 		itemIndex,
 	});
+}
+
+/** An error's description, such as `invalid_input · request req_…`, from the parts it has. */
+function describe(code: unknown, runId: string | undefined, requestId: unknown): string {
+	const parts = [code, runId && `run ${runId}`, requestId && `request ${String(requestId)}`];
+	return parts.filter((part) => typeof part === 'string' && part !== '').join(' · ');
 }
 
 function expectRun(ctx: IExecuteFunctions, itemIndex: number, answer: Answer): Run {

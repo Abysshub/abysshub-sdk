@@ -139,8 +139,8 @@ test("the credential's API URL defaults to the production API", () => {
 test("a hold cut after its headers is pressed again with the same Idempotency-Key, and holds again", async () => {
   // The press cut in run-cut-reattach.json, then the same press answering the run its re-attach read.
   const cut = byName["run-cut-reattach.json"];
-  const [press, reattach] = cut.exchanges;
-  const recording = { ...cut, exchanges: [press, { request: press.request, response: reattach.response }] };
+  const [cutPress, reattach] = cut.exchanges;
+  const recording = { ...cut, exchanges: [cutPress, { request: cutPress.request, response: reattach.response }] };
   const { items, error } = await replayNode(recording, { operation: "run", widgetId: cut.call.widget, input: cut.call.input });
   assert.ok(items, `expected a run, got ${error}`);
   assertFields(items[0].json, cut.outcome.run, "run");

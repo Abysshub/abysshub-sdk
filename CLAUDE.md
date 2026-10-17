@@ -8,6 +8,7 @@ The official libraries for the Abyss API (`/v1`): **`abysshub`** for JavaScript 
 - **`exchanges/`** holds the recorded exchanges. Each one is a JSON file of requests and responses, including chunks with leading spaces and cuts. A tiny fake server replays them. **Both libraries pass the same exchanges, with the same outcome.**
 - **`contract/openapi.json`** is `/v1`'s contract, copied from the api. Every recorded body is validated against it. It is never edited here (see "The contract file").
 - **`live/`** is the nightly live run against dev (see "The nightly live run"): `live.mjs` and `live.py` make the same checks through each library, and `widget/` is the source of the probe Widget they press.
+- **`skills/abyss-widget/`** is the public agent skill (sdk #45) that teaches a coding agent to build a Widget, or Port a tool (`CONTEXT.md`'s Port, Case, Done List and Check). It sits outside every package and ships in none. Its `WIDGET.md` quotes the platform's Widget facts from the api, which this repo cannot read: a platform change to them changes that file too. Its `scripts/check_abyss.py` calls the Python library, so a change to the library's public surface keeps it working, as with `live/`.
 
 The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and 2026-10-05) decided them, and the parts a change here needs are quoted below, because this repo cannot read the api's.
 

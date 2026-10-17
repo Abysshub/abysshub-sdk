@@ -1,6 +1,6 @@
 # Recorded exchanges
 
-Each file is one call through a library and the HTTP exchanges it makes, in order. Both libraries replay every file through a tiny fake server and must reach the same `outcome`. The JS tests also validate every recorded body against `contract/openapi.json`.
+Each file is one call through a library and the HTTP exchanges it makes, in order. Both libraries replay every file through a tiny fake server and must reach the same `outcome`. The JS tests also validate every recorded body against `contract/openapi.json`. The n8n node (`n8n/`) replays the files whose call is one of its operations, listed in `n8n/test/node.test.mjs`.
 
 - **`call`:** what the caller does. `method` names the library method, `run` when it is left out:
   - `run` and `runs.create` take `widget`, `input` and `options` (`max_price`, `idempotency_key`);

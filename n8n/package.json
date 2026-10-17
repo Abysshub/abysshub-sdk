@@ -1,0 +1,54 @@
+{
+  "name": "n8n-nodes-abysshub",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Run an Abyss Widget as a step in an n8n workflow.",
+  "keywords": [
+    "n8n-community-node-package",
+    "abyss",
+    "abysshub"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/Abysshub/abysshub-sdk/tree/main/n8n#readme",
+  "author": {
+    "name": "Abysshub",
+    "email": "r.aliev@abysshub.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Abysshub/abysshub-sdk.git",
+    "directory": "n8n"
+  },
+  "bugs": "https://github.com/Abysshub/abysshub-sdk/issues",
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "prepack": "npm run build",
+    "scan": "npm run build && node scripts/scan.mjs",
+    "test": "npm run build && node --test test/*.test.mjs && node scripts/scan.mjs"
+  },
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "strict": true,
+    "credentials": [
+      "dist/credentials/AbyssApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Abyss/Abyss.node.js"
+    ]
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "devDependencies": {
+    "@n8n/scan-community-package": "^0.39.0",
+    "@types/node": "^20.19.43",
+    "n8n-workflow": "^1.120.33",
+    "typescript": "^5.9.3"
+  }
+}

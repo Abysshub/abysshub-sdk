@@ -24,6 +24,8 @@ NOT_A_FIELD = "abysshub_live_not_a_field"
 """A key the probe has no Field for, so a press with it is refused as `invalid_input`."""
 TIMEOUT = 600
 """The seconds each call waits at most, so a stuck run turns the night red instead of hanging it."""
+AS_SENT = "\n\ta back\\slash, a/b, é"
+"""A newline, a tab, a backslash, a / and a non-ASCII letter, which must reach the probe as they were sent."""
 
 
 def main() -> int:
@@ -34,7 +36,7 @@ def main() -> int:
     if match is None:
         return fail(f"ABYSS_PROBE_WIDGET is {widget!r}, not a listed Widget's widget_<id>.")
 
-    text = f"abysshub live run (python), {datetime.now(timezone.utc).isoformat()}"
+    text = f"abysshub live run (python), {datetime.now(timezone.utc).isoformat()}{AS_SENT}"
     sent = f"A probe file from {text}.\n"
     abyss = Abyss(timeout=TIMEOUT)
     runs: list[Run] = []
@@ -50,6 +52,9 @@ def main() -> int:
 
     def ran(run: Run) -> str:
         runs.append(run)
+        echoed = (run.result or {}).get("text")
+        if echoed != text:
+            raise Broke(f"{run.id}: the Result's text is {echoed!r}, not the text sent")
         return f"{run.id} {run.status}, price {run.price}, {len(run.output_files)} output file(s)"
 
     with tempfile.TemporaryDirectory(prefix="abysshub-live-") as tmp:
@@ -79,9 +84,9 @@ def main() -> int:
                     size = (into / output.path).stat().st_size
                     if size != output.size:
                         raise Broke(f"{run.id}: {output.path} saved {size} bytes, its run says {output.size}")
-                echo = (into / "echo.txt").read_text(encoding="utf-8")
-                if echo != f"{text}\n":
-                    raise Broke(f"{run.id}: echo.txt holds {echo!r}, not the text sent")
+                echo = (into / "echo.txt").read_bytes()
+                if echo != f"{text}\n".encode("utf-8"):
+                    raise Broke(f"{run.id}: echo.txt holds {echo.decode('utf-8', 'replace')!r}, not the text sent")
             return f"{saved} file(s) saved from {len(runs)} run(s), each at its size"
 
         check("run.save()", save)

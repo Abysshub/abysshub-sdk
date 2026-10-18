@@ -97,28 +97,23 @@ Each Field arrives as an environment variable named exactly like the Field, and 
 | `text-field`, `text-area` | the text, trimmed at both ends |
 | `number-field` | the number as text: `"3"`, `"2.5"` |
 | `select`, `radio-group` | the chosen option |
-| `checkbox-group` | a JSON array of the chosen options: `["summary","totals"]` |
+| `checkbox-group` | a JSON array of the chosen options, each as it was sent: `["a/b","é"]` |
 | `date-field` | `MM/DD/YYYY`: `"03/15/2026"` |
 | `file` | the file's path, relative to the folder's root: `"invoice.pdf"`. With `multiple: true`, a JSON array of paths in a folder named for the Field: `["photos/a.png","photos/b.png"]`, with a number in front of a repeated name (`photos/1-a.png`, `photos/2-a.png`) |
 
 - **An optional Field left empty is absent or empty.** Read it with a default: `read("notes") or ""`.
 - **Read the file at the path the variable names.** A single file lands at the folder's root under its uploaded name, stripped to letters, digits, `.`, `_`, ` ` and `-`. So never assume a fixed input file name, and never give a file you bundle at the root an extension a file Field's `mimes` accepts, since an upload of that name would replace it.
-- **Newlines, tabs and backslashes arrive escaped.** Abyss hands every value over, Fields and secrets alike, with a newline as the two characters `\n`, a tab as `\t` and a backslash as `\\`. A text area, a JSON array holding `/` or a non-ASCII letter, and a multi-line secret all need decoding. Read every value through one helper that undoes it:
+- **A value is the string as it was sent.** Abyss hands every value over, Fields and secrets alike, unchanged: a text area keeps its newlines, and a secret (a PEM key, a service account's JSON) keeps its own. Read every value through one helper that supplies the default for an absent or empty one:
 
 ```python
 import json
 import os
-import re
-
-_ESCAPED = {"\\": "\\", "n": "\n", "t": "\t", "r": "\r"}
 
 
 def read(name, default=None):
-    """A Field's or a secret's value as it was typed, or default when it is empty."""
+    """A Field's or a secret's value, or default when it is absent or empty."""
     value = os.environ.get(name, "")
-    if value == "":
-        return default
-    return re.sub(r"\\([\\ntr])", lambda m: _ESCAPED[m.group(1)], value)
+    return default if value == "" else value
 
 
 def read_list(name):
@@ -127,7 +122,7 @@ def read_list(name):
     return json.loads(value) if value else []
 ```
 
-`scripts/run_local.py` hands values over the same way, so a Widget that skips the helper fails locally too.
+`scripts/run_local.py` hands values over the same way, so a local run sees what a run on Abyss sees.
 
 ## Outputs and the Result
 
@@ -177,14 +172,10 @@ import os
 import re
 import sys
 
-_ESCAPED = {"\\": "\\", "n": "\n", "t": "\t", "r": "\r"}
-
 
 def read(name, default=None):
     value = os.environ.get(name, "")
-    if value == "":
-        return default
-    return re.sub(r"\\([\\ntr])", lambda m: _ESCAPED[m.group(1)], value)
+    return default if value == "" else value
 
 
 def main():

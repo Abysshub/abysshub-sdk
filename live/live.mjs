@@ -12,6 +12,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const NOT_A_FIELD = "abysshub_live_not_a_field";
 /** The seconds each call waits at most, so a stuck run turns the night red instead of hanging it. */
 const TIMEOUT = 600;
+/** A newline, a tab, a backslash, a / and a non-ASCII letter, which must reach the probe as they were sent. */
+const AS_SENT = "\n\ta back\\slash, a/b, é";
 
 /** A check's own finding: its message says it all, so it prints without a stack. */
 class Broke extends Error {}
@@ -23,7 +25,7 @@ const widget = config("ABYSS_PROBE_WIDGET");
 const widgetId = /^widget_([1-9][0-9]*)$/.exec(widget)?.[1];
 if (!widgetId) fail(`ABYSS_PROBE_WIDGET is ${JSON.stringify(widget)}, not a listed Widget's widget_<id>.`);
 
-const text = `abysshub live run (js), ${new Date().toISOString()}`;
+const text = `abysshub live run (js), ${new Date().toISOString()}${AS_SENT}`;
 const sent = `A probe file from ${text}.\n`;
 const abyss = new Abyss({ timeout: TIMEOUT });
 // Inside this folder, so the Widget's code finds the installed `abysshub` the way a caller's does.
@@ -53,8 +55,8 @@ try {
         const { size } = await stat(join(into, output.path));
         if (size !== output.size) throw new Broke(`${run.id}: ${output.path} saved ${size} bytes, its run says ${output.size}`);
       }
-      const echo = await readFile(join(into, "echo.txt"), "utf8");
-      if (echo !== `${text}\n`) throw new Broke(`${run.id}: echo.txt holds ${JSON.stringify(echo)}, not the text sent`);
+      const echo = await readFile(join(into, "echo.txt"));
+      if (!echo.equals(Buffer.from(`${text}\n`))) throw new Broke(`${run.id}: echo.txt holds ${JSON.stringify(echo.toString())}, not the text sent`);
     }
     return `${saved} file(s) saved from ${runs.length} run(s), each at its size`;
   });
@@ -106,6 +108,8 @@ async function check(name, call) {
 
 function ran(run) {
   runs.push(run);
+  const echoed = run.result?.text;
+  if (echoed !== text) throw new Broke(`${run.id}: the Result's text is ${JSON.stringify(echoed)}, not the text sent`);
   return `${run.id} ${run.status}, price ${run.price}, ${run.output_files.length} output file(s)`;
 }
 

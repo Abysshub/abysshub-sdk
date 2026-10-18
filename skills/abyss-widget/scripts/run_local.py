@@ -8,10 +8,10 @@ file Field's value is {"file": "<path relative to the case folder>"} (a list of
 them for a multi-file Field), a date is "YYYY-MM-DD", and "needs" names the
 secrets the run needs: a Case whose secret is missing from the Widget folder's
 .env is reported "not run", never run. The run copies the Widget folder
-as the uploader would, hands every input over as Abyss does (as strings, with
-newlines, tabs and backslashes escaped), adds the secrets in the Widget folder's
-.env, runs `python run.py` in a clean environment, then judges the ending by
-Abyss's rules. It writes run.json, log.txt and output/ to
+as the uploader would, hands every input over as Abyss does (as strings, each
+exactly as it was sent), adds the secrets in the Widget folder's .env, runs
+`python run.py` in a clean environment, then judges the ending by Abyss's
+rules. It writes run.json, log.txt and output/ to
 <port>/runs/local/<case>/, where <port> is the folder holding cases/.
 
 Options:
@@ -153,15 +153,9 @@ def number_repeats(leaves: list[str]) -> list[str]:
     return out
 
 
-def php_json(value, escape_slashes: bool = True) -> str:
-    """json_encode's default output: no spaces, \\/ for /, \\uXXXX for non-ASCII."""
-    text = json.dumps(value, ensure_ascii=True, separators=(",", ":"))
-    return text.replace("/", "\\/") if escape_slashes else text
-
-
-def escaped(value: str) -> str:
-    """What `jq -r @tsv` then `read -r` make of a value on its way into the run."""
-    return value.replace("\\", "\\\\").replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r")
+def compact_json(value) -> str:
+    """A list as the run receives it: no spaces, with / and non-ASCII letters as themselves."""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
 def check_input(fields: list[dict], given: dict) -> None:
@@ -239,11 +233,11 @@ def place_files(field: dict, value, case: Path, run_dir: Path) -> str:
         (run_dir / folder).mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, run_dir / folder / leaf)
         paths.append(f"{folder}/{leaf}")
-    return php_json(paths, escape_slashes=False)
+    return compact_json(paths)
 
 
 def as_variable(field: dict | None, value) -> str | None:
-    """A non-file input as the run receives it, before escaping; None when it arrives empty."""
+    """A non-file input as the run receives it; None when it arrives empty."""
     if value is None or value == "" or value == []:
         return None
     kind = field["type"] if field else None
@@ -251,7 +245,7 @@ def as_variable(field: dict | None, value) -> str | None:
         day = datetime.date.fromisoformat(str(value))
         return f"{day.month:02d}/{day.day:02d}/{day.year:04d}"
     if isinstance(value, (list, dict)):
-        return php_json(value)
+        return compact_json(value)
     if isinstance(value, bool):
         return "true" if value else ""
     if isinstance(value, (int, float)):
@@ -336,18 +330,18 @@ def run_case(widget: Path, case: Path, out_root: Path, python: str, timeout: int
         env = {k: os.environ[k] for k in ("HOME", "TMPDIR", "TEMP", "TMP", "SYSTEMROOT", "LANG") if k in os.environ}
         env["PATH"] = os.pathsep.join([str(Path(python).parent), os.environ.get("PATH", "")])
         env["PYTHONUTF8"] = "1"
-        env.update({name: escaped(value) for name, value in variables.items()})
+        env.update(variables)
         interface_text = (widget / "interface.json").read_text(encoding="utf-8") if fields else "[]"
         platform = {"BUCKET_NAME": "local", "WIDGET_NAME": widget.name, "BASE_URL": "http://localhost",
                     "INTERFACE_JSON": json.dumps(json.loads(interface_text), separators=(",", ":"))}
-        env.update({name: escaped(value) for name, value in platform.items()})
+        env.update(platform)
         for name, value in read_dotenv(widget / ".env").items():
             if name in by_name:
                 report["notes"].append(f"secret {name} is dropped: a Field has the same name")
             elif name in RESERVED_SECRETS or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,127}", name):
                 report["notes"].append(f"secret {name} is a name Creator Environment refuses")
             else:
-                env[name] = escaped(value)
+                env[name] = value
 
         version = subprocess.run([python, "-c", "import sys; print('%d.%d' % sys.version_info[:2])"],
                                  capture_output=True, text=True).stdout.strip()

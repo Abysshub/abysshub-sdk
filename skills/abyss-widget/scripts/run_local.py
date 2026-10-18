@@ -9,8 +9,9 @@ them for a multi-file Field), a date is "YYYY-MM-DD", and "needs" names the
 secrets the run needs: a Case whose secret is missing from the Widget folder's
 .env is reported "not run", never run. The run copies the Widget folder
 as the uploader would, hands every input over as Abyss does (as strings, each
-exactly as it was sent), adds the secrets in the Widget folder's .env, runs `python run.py` in a clean environment, then judges the ending by
-Abyss's rules. It writes run.json, log.txt and output/ to
+exactly as it was sent), adds the secrets in the Widget folder's .env, runs
+`python run.py` in a clean environment, then judges the ending by Abyss's
+rules. It writes run.json, log.txt and output/ to
 <port>/runs/local/<case>/, where <port> is the folder holding cases/.
 
 Options:

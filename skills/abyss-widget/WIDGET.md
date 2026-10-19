@@ -26,7 +26,7 @@ The runtime is **Ubuntu 24.04 with Python 3.12**, in a virtualenv. Python is the
 ### Dependencies
 
 - **Pin everything the Widget's virtualenv holds**, not just what `run.py` imports: `pip freeze > requirements.txt` from the virtualenv the local runs used. The build installs whatever is newest for anything left unpinned.
-- **Every pinned version must have no known critical vulnerability.** The build scans the image and refuses one with a fixable CRITICAL CVE. The Creator's Test Run then fails with only *"The platform could not complete this run … this is not a problem with the widget"*, and no log. Check the pins before the upload, from any Python 3.9+ (here a throwaway virtualenv):
+- **Every pinned version must have no known critical vulnerability.** The build scans the image and refuses one with a fixable CRITICAL CVE. The Creator's Test Run then fails with *"This Widget's build was refused: …"*, which names each package, its installed version, its CVE ids and the version that fixes it. Check the pins before the upload, from any Python 3.9+ (here a throwaway virtualenv):
 
   ```bash
   python3 -m venv /tmp/audit && /tmp/audit/bin/pip install -q pip-audit && /tmp/audit/bin/pip-audit -r <widget>/requirements.txt

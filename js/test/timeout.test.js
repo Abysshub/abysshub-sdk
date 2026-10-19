@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Abyss, AbyssError } from "../dist/index.js";
-import { timeoutOnceHeld } from "./caller.js";
+import { headersArrive, timeoutOnceHeld } from "./caller.js";
 import { loadExchanges, replay } from "./fake-server.js";
 
 const KEY = "abyss_sk_fake_for_tests";
@@ -37,7 +37,8 @@ test("an aborted signal during the press's first hold raises timeout with the ru
   against(
     async (base, server) => {
       const controller = new AbortController();
-      server.held.then(() => controller.abort());
+      // The press's headers carry the run's id: abort only once the client has them.
+      Promise.all([server.held, headersArrive()]).then(() => controller.abort());
       const abyss = new Abyss({ apiKey: KEY, baseURL: base });
       const error = await abyss.run(widget, input, { signal: controller.signal }).catch((raised) => raised);
       assert.ok(isTimeout(null)(error), `expected a timeout, got ${error}`);

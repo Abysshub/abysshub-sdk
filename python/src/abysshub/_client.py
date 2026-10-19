@@ -409,7 +409,7 @@ class Abyss(_Base[Run]):
     def _sleep(self, call: _Call, seconds: float) -> None:
         """Waits ``seconds``, or raises ``timeout`` at the call's deadline."""
         pause, stops = self._pause(call, seconds)
-        time.sleep(pause)
+        _wait(pause)
         if stops:
             raise self._timed_out(call)
 
@@ -540,6 +540,11 @@ class Abyss(_Base[Run]):
                 pause = reply
             self._sleep(call, pause)
             attempt += 1
+
+
+def _wait(seconds: float) -> None:
+    """Waits out a pause between two tries. Only the tests replace it, so as not to sleep through the real pauses."""
+    time.sleep(seconds)
 
 
 def _heard(call: _Call, headers: httpx.Headers) -> None:

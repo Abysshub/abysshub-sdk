@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { afterEach, beforeEach, test } from "node:test";
+import { REATTACH_PAUSE_MS, RETRY_PAUSE_CEILING_MS, RETRY_PAUSE_MS } from "../dist/client.js";
 import { Abyss, AbyssError } from "../dist/index.js";
 import { loadExchanges, replay } from "./fake-server.js";
 
@@ -46,6 +47,10 @@ test("no key raises AbyssError", () => {
 test("maxRetries defaults to 2", () => {
   assert.equal(new Abyss({ apiKey: "abyss_sk_x" }).maxRetries, 2);
   assert.equal(new Abyss({ apiKey: "abyss_sk_x", maxRetries: 0 }).maxRetries, 0);
+});
+
+test("the pauses are 1 s between re-attaches, and 0.5 s doubling up to 10 s before a retry", () => {
+  assert.deepEqual([REATTACH_PAUSE_MS, RETRY_PAUSE_MS, RETRY_PAUSE_CEILING_MS], [1_000, 500, 10_000]);
 });
 
 test("in a browser, new Abyss() throws", () => {

@@ -1,0 +1,4 @@
+{
+  "mergeProof": "(cd js && npm test) && (cd python && pytest)",
+  "nearbyTests": "(cd js && npm test) && (cd python && pytest)"
+}

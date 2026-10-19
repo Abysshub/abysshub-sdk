@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pausing } from "../dist/client.js";
 import { file } from "../dist/index.js";
 
 /** The caller's input: `{"$file": name}` is `file(path)`, and `{"$bytes": name}` a `File` in memory. */
@@ -25,6 +26,30 @@ export async function withFiles(files, work) {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/** Makes every pause the library waits between two tries near zero, so no test sleeps through a real one. */
+export function skipPauses() {
+  const sleep = pausing.sleep;
+  pausing.sleep = (_ms, signal) => sleep(0, signal);
+}
+
+/**
+ * Settles once the library's next request has its status and headers, before the library
+ * reads them: in this one process, the fake server's having sent them does not mean the
+ * client has them yet.
+ */
+export function headersArrive() {
+  const fetch = globalThis.fetch;
+  return new Promise((resolve) => {
+    globalThis.fetch = (...args) => {
+      globalThis.fetch = fetch;
+      return fetch(...args).then((response) => {
+        resolve();
+        return response;
+      });
+    };
+  });
 }
 
 /**

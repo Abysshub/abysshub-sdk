@@ -4,10 +4,12 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { Abyss, AbyssError, FilesAsleepError } from "../dist/index.js";
 import { Run } from "../dist/run.js";
-import { callerInput, perform, timeoutOnceHeld, withFiles } from "./caller.js";
+import { callerInput, perform, skipPauses, timeoutOnceHeld, withFiles } from "./caller.js";
 import { loadExchanges, pattern, replay } from "./fake-server.js";
 
 const KEY = "abyss_sk_fake_for_tests";
+
+skipPauses();
 
 /** The codes `run.save()` raises as `FilesAsleepError`. */
 const FILES_ASLEEP = new Set(["files_asleep", "files_waking"]);

@@ -7,6 +7,7 @@ import pytest
 from fake_server import Replay, load_exchanges
 
 from abysshub import Abyss, AbyssError, AsyncAbyss
+from abysshub._client import REATTACH_PAUSE, RETRY_PAUSE, RETRY_PAUSE_CEILING
 
 
 @pytest.fixture(autouse=True)
@@ -38,6 +39,10 @@ def test_no_key_raises_abyss_error() -> None:
     with pytest.raises(AbyssError) as raised:
         Abyss()
     assert raised.value.code == "invalid_api_key"
+
+
+def test_the_pauses_are_1_s_between_reattaches_and_0_5_s_doubling_up_to_10_s_before_a_retry() -> None:
+    assert (REATTACH_PAUSE, RETRY_PAUSE, RETRY_PAUSE_CEILING) == (1.0, 0.5, 10.0)
 
 
 def test_async_abyss_takes_the_same_options(monkeypatch: pytest.MonkeyPatch) -> None:

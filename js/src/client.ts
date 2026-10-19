@@ -13,13 +13,16 @@ const DEV_KEY_PREFIX = "abyss_sk_dev_";
 const RUN_LOCATION = /\/v1\/runs\/([^/?#]+)\/?(?:[?#]|$)/;
 
 /** The pause between two re-attaches that both ended without the run's ending. */
-const REATTACH_PAUSE_MS = 1_000;
+export const REATTACH_PAUSE_MS = 1_000;
 
 /** The first pause before a retry after a drop or a 5xx; it doubles with each retry. */
-const RETRY_PAUSE_MS = 500;
+export const RETRY_PAUSE_MS = 500;
 
 /** The longest pause between two tries, which only re-attaching, with no limit, reaches. */
-const RETRY_PAUSE_CEILING_MS = 10_000;
+export const RETRY_PAUSE_CEILING_MS = 10_000;
+
+/** How the client waits out every pause between two tries. Only the tests replace `sleep`, so as not to wait the real pauses. */
+export const pausing = { sleep };
 
 const BROWSER_REFUSAL = "An Abyss API key is a server-side secret. Call the API from your server.";
 
@@ -305,7 +308,7 @@ export class Abyss {
   async #hold<R extends Reply>(call: Call, url: string, done: (reply: Reply) => reply is R): Promise<R> {
     let reply = await this.#send(call, "GET", url, {}, undefined, Infinity);
     while (!done(reply)) {
-      await sleep(REATTACH_PAUSE_MS, call.signal);
+      await pausing.sleep(REATTACH_PAUSE_MS, call.signal);
       reply = await this.#send(call, "GET", url, {}, undefined, Infinity);
     }
     return reply;
@@ -374,7 +377,7 @@ export class Abyss {
             cause: error,
           });
         }
-        await sleep(backoff(attempt), call.signal);
+        await pausing.sleep(backoff(attempt), call.signal);
         continue;
       }
       const requestId = answer.headers.get("request-id");
@@ -390,7 +393,7 @@ export class Abyss {
       }
       const pause = retryPause(answer, attempt);
       if (pause === null || attempt >= retries) throw refusal(answer.status, parsed, requestId, call.runId);
-      await sleep(pause, call.signal);
+      await pausing.sleep(pause, call.signal);
     }
   }
 }

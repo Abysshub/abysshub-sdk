@@ -33,7 +33,8 @@ Give the Creator these steps, with the names filled in:
 3. **Environment variables**, on the same page: *Imported from .env: N added (…)* lists the secrets' names. They add any missing one with **+ Add variable**. With no secrets, there is nothing to add.
 4. Press **Test Run**, fill the form with the input from step 1, and press **RUN**. It must succeed: Abyss publishes only a version whose Test Run succeeded.
    - A failure with a log: the log says why. Fix the Widget, run it locally again, and have them upload the folder again as a new Draft (any change needs a new Test Run).
-   - *The platform could not complete this run … this is not a problem with the widget*, with no log, right after an upload: usually the build refusing a dependency with a known critical vulnerability. Run `pip-audit` on the pins, move the flagged one, run the Cases again, and have them upload again. When `pip-audit` passes, the fault may be the platform's: have them press **Run again**.
+   - *This Widget's build was refused: …*: a package the Widget installs has a known critical vulnerability. The message names each package, its installed version, its CVE ids and the version that fixes it. Move each named package to its fixed version or later, run the Cases again, and have them upload again.
+   - *The platform could not complete this run … this is not a problem with the widget*, with no log: the platform's fault, or a build that could not install the Widget's packages (an unpinned or uninstallable version; see WIDGET.md, "Each version must install on Python 3.12 for Linux"). Check that every pin installs: fix one that does not, run the Cases again, and have them upload again. When every pin installs, have them press **Run again**.
 
    Then **Continue**.
 5. **Finalize.** A title of 3 to 96 characters, at least one tag, the thumbnail, and **PRIVATE** (a new Widget starts as PUBLIC). The price may stay 0. Press **Publish**.

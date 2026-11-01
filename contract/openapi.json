@@ -8,7 +8,7 @@
   },
   "externalDocs": {
     "description": "API access: the key, the loop, files and errors.",
-    "url": "https://abysshub.com/documentation/api"
+    "url": "https://abysshub.com/docs#api"
   },
   "servers": [
     {
@@ -55,6 +55,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccountStopped"
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
@@ -126,6 +129,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "403": {
+            "$ref": "#/components/responses/AccountStopped"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
@@ -192,6 +198,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccountStopped"
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
@@ -330,6 +339,9 @@
           "402": {
             "$ref": "#/components/responses/PaymentRequired"
           },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
@@ -351,8 +363,8 @@
     "/v1/runs": {
       "get": {
         "operationId": "listRuns",
-        "summary": "Your API runs, newest first",
-        "description": "The runs made through `/v1` by any of your keys, newest first, a page at a time, so you can find a run whose id you lost. Runs from the website are not listed. There are no filters and no totals: while `has_more` is true, ask for the next page with `starting_after` set to the last run's `id`.",
+        "summary": "This key's runs, newest first",
+        "description": "The runs this key made, newest first, a page at a time, so you can find a run whose id you lost. Runs from the website and from your other keys are not listed. There are no filters and no totals: while `has_more` is true, ask for the next page with `starting_after` set to the last run's `id`.",
         "parameters": [
           {
             "$ref": "#/components/parameters/Limit"
@@ -397,6 +409,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccountStopped"
           },
           "422": {
             "$ref": "#/components/responses/UnprocessableContent"
@@ -470,6 +485,9 @@
           "401": {
             "$ref": "#/components/responses/Unauthorized"
           },
+          "403": {
+            "$ref": "#/components/responses/AccountStopped"
+          },
           "404": {
             "$ref": "#/components/responses/NotFound"
           },
@@ -538,6 +556,9 @@
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/AccountStopped"
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
@@ -612,7 +633,7 @@
         "name": "Idempotency-Key",
         "in": "header",
         "required": false,
-        "description": "Makes the press safe to retry. Any 1 to 255 visible ASCII characters; a UUID is a good choice, new for each new press. The key is kept for 24 hours and is yours alone. A retry with the same key and the same body answers like the first press, with its run and `Idempotent-Replayed: true`: it holds, or answers `202` at once with `\"wait\": false`. It never runs or charges twice. The same key with a different body is `422 idempotency_key_reused`; the same key while the first press is still being handled is `409 idempotency_key_in_use`. A refused press is not kept, so fix the request and send it again with the same key.",
+        "description": "Makes the press safe to retry. Any 1 to 255 visible ASCII characters; a UUID is a good choice, new for each new press. The key is kept for 24 hours and belongs to the API Key that sent it: the same `Idempotency-Key` from another of your keys is a new press. A retry with the same key and the same body answers like the first press, with its run and `Idempotent-Replayed: true`: it holds, or answers `202` at once with `\"wait\": false`. It never runs or charges twice. The same key with a different body is `422 idempotency_key_reused`; the same key while the first press is still being handled is `409 idempotency_key_in_use`. A refused press is not kept, so fix the request and send it again with the same key.",
         "schema": {
           "type": "string",
           "pattern": "^[\\x21-\\x7E]{1,255}$"
@@ -704,7 +725,7 @@
               "error": {
                 "code": "price_above_max",
                 "message": "This run costs 3.1 Ƀ, more than the max_price you sent. Nothing was charged. Check the price (GET /v1/widgets/{id}), then press again with a higher max_price or none.",
-                "doc_url": "https://abysshub.com/documentation/api#price_above_max",
+                "doc_url": "https://abysshub.com/docs#price_above_max",
                 "price": 3.1
               },
               "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
@@ -728,7 +749,7 @@
               "error": {
                 "code": "invalid_api_key",
                 "message": "Send a live API Key as \"Authorization: Bearer abyss_sk_…\". Create one in your Cave; a revoked key, or a website sign-in, is not accepted here.",
-                "doc_url": "https://abysshub.com/documentation/api#invalid_api_key"
+                "doc_url": "https://abysshub.com/docs#invalid_api_key"
               },
               "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
             }
@@ -751,7 +772,7 @@
               "error": {
                 "code": "insufficient_funds",
                 "message": "Your Available Byssium is 0.3 Ƀ short of this run's price. Top up your wallet, then press again.",
-                "doc_url": "https://abysshub.com/documentation/api#insufficient_funds",
+                "doc_url": "https://abysshub.com/docs#insufficient_funds",
                 "shortfall": 0.3
               },
               "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
@@ -759,8 +780,54 @@
           }
         }
       },
+      "Forbidden": {
+        "description": "`payments_stopped`: a payment on your account was refunded or disputed, so it runs no paid Widget until AbyssHub has looked at it. Nothing was charged. Ask us to look from your Cave, whose address the message names. Your own Widgets, free ones and Free Runs still run. `account_stopped`: an Admin has stopped your account, so no key of it is accepted until the stop is lifted.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "payments_stopped",
+                "message": "A payment on this account was refunded or disputed, so it can't run paid Widgets until we have looked at it. Nothing was charged. Ask us to look from your Cave: https://abysshub.com/cave/your-username",
+                "doc_url": "https://abysshub.com/docs#payments_stopped"
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
+      "AccountStopped": {
+        "description": "`account_stopped`: an Admin has stopped your account, so no key of it is accepted until the stop is lifted. Your keys are not revoked: they work again once it is.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "account_stopped",
+                "message": "This account is stopped, so none of its API Keys can be used. Nothing was charged. To ask about it, write to support@abysshub.com.",
+                "doc_url": "https://abysshub.com/docs#account_stopped"
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
       "NotFound": {
-        "description": "`not_found`: this key can't see the Widget or run, or nothing is at this path. A run is readable only when it was made through `/v1` by one of your keys.",
+        "description": "`not_found`: this key can't see the Widget or run, or nothing is at this path. A run is readable only by the key that made it.",
         "headers": {
           "Request-Id": {
             "$ref": "#/components/headers/RequestId"
@@ -775,7 +842,7 @@
               "error": {
                 "code": "not_found",
                 "message": "There is nothing at this address that this API Key can see.",
-                "doc_url": "https://abysshub.com/documentation/api#not_found"
+                "doc_url": "https://abysshub.com/docs#not_found"
               },
               "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
             }
@@ -817,7 +884,7 @@
                 "code": "invalid_input",
                 "message": "The input does not match this Widget's input_schema (GET /v1/widgets/{id}): The title field is required.",
                 "param": "title",
-                "doc_url": "https://abysshub.com/documentation/api#invalid_input"
+                "doc_url": "https://abysshub.com/docs#invalid_input"
               },
               "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
             }
@@ -1409,7 +1476,7 @@
           {
             "const": "not_found",
             "x-status": 404,
-            "description": "Check the id and the path: this key can't see that Widget or run, and a run is readable only when one of your keys made it through `/v1`."
+            "description": "Check the id and the path: this key can't see that Widget or run, and a run is readable only by the key that made it."
           },
           {
             "const": "invalid_request",
@@ -1475,6 +1542,16 @@
             "const": "insufficient_funds",
             "x-status": 402,
             "description": "Top up your wallet by at least `shortfall` Ƀ, then press again."
+          },
+          {
+            "const": "payments_stopped",
+            "x-status": 403,
+            "description": "Ask us to look from your Cave, whose address the message names: a payment on your account was refunded or disputed, and paid runs stay stopped until AbyssHub has looked at it. Retrying will not help."
+          },
+          {
+            "const": "account_stopped",
+            "x-status": 403,
+            "description": "An Admin has stopped your account; ask us about it by writing to support@abysshub.com. Your keys work again once the stop is lifted. Retrying will not help."
           },
           {
             "const": "spend_cap_reached",

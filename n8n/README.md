@@ -1,6 +1,6 @@
 # n8n-nodes-abysshub
 
-Pre-release: the Abyss API opens soon, and this package is not published yet.
+Pre-release: the Abyss API opens soon. Until then, try the node as `n8n-nodes-abysshub@next`; n8n has not verified it yet.
 
 An [n8n](https://n8n.io) community node that runs an [Abyss](https://abysshub.com) Widget as a step in a workflow. It gives n8n one node, **Abyss**, with one credential.
 

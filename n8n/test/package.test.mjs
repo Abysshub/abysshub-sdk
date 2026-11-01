@@ -17,11 +17,13 @@ test("the package names the node and credential n8n loads", () => {
   assert.deepEqual(pkg.n8n.credentials, ["dist/credentials/AbyssApi.credentials.js"]);
 });
 
-// Publishing waits for the /v1 cutover: until then nothing may publish the package.
-test("nothing publishes the package yet", async () => {
-  assert.equal(pkg.private, true, "npm refuses to publish a private package");
-  const release = await readFile(new URL("../../.github/workflows/release.yml", import.meta.url), "utf8");
-  assert.doesNotMatch(release, /n8n/, "release.yml does not name n8n/");
-  const directories = [...release.matchAll(/working-directory:\s*(\S+)/g)].map(([, dir]) => dir);
-  assert.deepEqual([...new Set(directories)], ["js"]);
+// release.yml publishes the package beside the JS one. n8n verifies only a package with
+// provenance, and npm accepts provenance only when `repository` names this repo.
+test("the package publishes its build from this repo, with provenance", () => {
+  assert.equal(pkg.private, undefined, "npm refuses to publish a private package");
+  assert.equal(pkg.version, "0.0.0", "release.yml computes every version");
+  assert.equal(pkg.repository.url, "git+https://github.com/Abysshub/abysshub-sdk.git");
+  assert.equal(pkg.repository.directory, "n8n");
+  assert.deepEqual(pkg.files, ["dist"]);
+  assert.equal(pkg.publishConfig?.provenance, true);
 });

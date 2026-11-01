@@ -84,6 +84,36 @@ jobs:
         env:
           TAG: ${{ needs.version.outputs.tag }}
 
+  # The n8n node, on the JS package's track and version. n8n verifies only a package
+  # with provenance, which trusted publishing adds (publishConfig.provenance pins it).
+  n8n:
+    needs: version
+    runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'release' && 'release' || 'next' }}
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: n8n
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      # n8n/.npmrc sets ignore-scripts, so npm publish runs no prepack: build first.
+      - run: npm run build
+      - run: npm version "$VERSION" --no-git-tag-version
+        env:
+          VERSION: ${{ needs.version.outputs.npm }}
+      - run: npm publish --tag "$TAG"
+        env:
+          TAG: ${{ needs.version.outputs.tag }}
+
   pypi:
     needs: version
     runs-on: ubuntu-latest

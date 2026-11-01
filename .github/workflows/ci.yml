@@ -29,6 +29,26 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  n8n:
+    name: n8n (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 24]
+    defaults:
+      run:
+        working-directory: n8n
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm test
+
   python:
     name: python (${{ matrix.python }})
     runs-on: ubuntu-latest

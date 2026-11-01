@@ -4,7 +4,7 @@ The official libraries for the Abyss API (`/v1`): **`abysshub`** for JavaScript 
 
 - **`js/`** is the npm package `abysshub`: TypeScript, shipped as ESM with types.
 - **`python/`** is the PyPI package `abysshub`: Python, with plain dataclasses and `py.typed`.
-- **`n8n/`** is the n8n community node `n8n-nodes-abysshub`: one node, **Abyss**, calling `/v1` through n8n's own HTTP helper, with no runtime dependencies (n8n's verified-node rules). Not published yet (`"private": true`); `npm test` there replays the exchanges its operations make and runs n8n's scanner rules.
+- **`n8n/`** is the n8n community node `n8n-nodes-abysshub`: one node, **Abyss**, calling `/v1` through n8n's own HTTP helper, with no runtime dependencies (n8n's verified-node rules). `release.yml` publishes it beside the JS package, with provenance, which n8n's verification needs (sdk #59); `npm test` there replays the exchanges its operations make and runs n8n's scanner rules.
 - **`exchanges/`** holds the recorded exchanges. Each one is a JSON file of requests and responses, including chunks with leading spaces and cuts. A tiny fake server replays them. **Both libraries pass the same exchanges, with the same outcome.**
 - **`contract/openapi.json`** is `/v1`'s contract, copied from the api. Every recorded body is validated against it. It is never edited here (see "The contract file").
 - **`live/`** is the nightly live run against dev (see "The nightly live run"): `live.mjs` and `live.py` make the same checks through each library, and `widget/` is the source of the probe Widget they press.
@@ -67,8 +67,8 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 - **Oldest supported versions first.** Code must run on Node 20 and Python 3.9. CI also runs newer versions, Bun and Deno.
   - **Python 3.9 is the `python3` that macOS ships**, so a caller's first try on a Mac runs on it, though CPython ended 3.9 in October 2025. It rules out `match`, `X | Y` outside an annotation (annotations are lazy under `from __future__ import annotations`; a type alias is not), and 3.10's library additions such as `zip(strict=)` and `dataclass(slots=)`.
   - **Raising a floor is a maintainer's decision**, released as a minor version. pip then gives a caller on the old Python the last release that ran on it (npm does not: it warns on `engines` and installs the newest).
-- **The tests:** `npm test` in `js/` and `pytest` in `python/`. `.github/workflows/ci.yml` runs both on every pull request, on the oldest and the newest versions. A change to `exchanges/` keeps both languages green.
-- **The packages started as placeholders that hold the published names.** Each one has a test of its dependency rule. Build on `js/package.json` and `python/pyproject.toml`: keep their `name`, their `version` of `0.0.0`, and `repository` (trusted publishing checks it).
+- **The tests:** `npm test` in `js/` and `n8n/`, and `pytest` in `python/`. `.github/workflows/ci.yml` runs all three on every pull request, on the oldest and the newest versions. A change to `exchanges/` keeps both languages green.
+- **The packages started as placeholders that hold the published names.** Each one has a test of its dependency rule. Build on `js/package.json`, `n8n/package.json` and `python/pyproject.toml`: keep their `name`, their `version` of `0.0.0`, and `repository` (trusted publishing checks it).
 - **This repo is public.** Its issues, pull requests and commits are visible to anyone. Never write a key, a secret, or another repo's code into them.
 
 ## The contract file
@@ -92,8 +92,8 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 ## Releases
 
 - **`.github/workflows/release.yml` is the only workflow that publishes.** It runs `ci.yml` on the commit first and publishes only when the tests pass.
-- **Every merge to `main` publishes a pre-release:** npm `abysshub@next` and a PyPI `.devN`, in the `next` environment, which deploys from `main` only. This is the dev track: dev walks install the library the way a caller would.
-- **A stable version publishes only from a published GitHub Release tagged `vX.Y.Z`:** npm `latest` and a final PyPI version, in the `release` environment, which waits for a maintainer's approval.
+- **Every merge to `main` publishes a pre-release:** npm `abysshub@next` and `n8n-nodes-abysshub@next` and a PyPI `.devN`, in the `next` environment, which deploys from `main` only. This is the dev track: dev walks install the library the way a caller would.
+- **A stable version publishes only from a published GitHub Release tagged `vX.Y.Z`:** npm `latest` for both packages and a final PyPI version, in the `release` environment, which waits for a maintainer's approval.
 - **The workflow computes every version.** A stable version is its tag. A pre-release is the patch after the newest `vX.Y.Z` tag on `main`, plus the number of commits since that tag: `0.1.1-dev.4` on npm, `0.1.1.dev4` on PyPI. The `0.0.0` in the package files is never bumped.
 - **Publishing uses trusted publishing only.** Each registry trusts `release.yml` in the `next` and `release` environments, and nothing else. No token is stored anywhere.
 - **Agents never publish.** They never run `npm publish` or `twine`, never create a release or a tag, never run `gh workflow run`, never change a package's name or version, and never edit `release.yml`.

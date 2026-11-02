@@ -30,9 +30,9 @@ Give the Creator these steps, with the names filled in:
    - *Interface auto-generated from interface.json — N fields added* confirms the Fields.
    - *interface.json found but not applied* means it is invalid: its message names the problem, which is yours to fix before they upload again.
    - *Left out: … .env → Environment variables* is expected: the uploader keeps the secrets out of the upload.
-   - *Not used: Dockerfile, .dockerignore — Abyss builds from requirements.txt and requirements.system.* shows when the project has its own: whatever they installed must be in those two files (WIDGET.md, "What the uploader leaves out").
+   - *Not used: Dockerfile, .dockerignore — Abyss builds from requirements.txt and requirements.system.* shows when the project has a Dockerfile: whatever it installs must be in those two files (WIDGET.md, "What the uploader leaves out").
 3. **Environment variables**, on the same page: *Imported from .env: N added (…)* lists the secrets' names. They add any missing one with **+ Add variable**. With no secrets, there is nothing to add.
-   - On an upload again, *N kept with a different value in your .env: …* names the secrets whose value changed in `.env`, a new key for instance. The website's values stay until they press **Use the file's values**, offered only right after the pick.
+   - When they upload again, *N kept with a different value in your .env: …* names the secrets whose value changed in `.env`, a new key for instance. The website's values stay until they press **Use the file's values**, offered only right after the pick.
 4. Press **Test Run**, fill the form with the input from step 1, and press **RUN**. It must succeed: Abyss publishes only a version whose Test Run succeeded.
    - A failure with a log: the log says why. Fix the Widget, run it locally again, and have them upload the folder again as a new Draft (any change needs a new Test Run).
    - *This Widget's build was refused: …*: a package the Widget installs has a known critical vulnerability. The message names each package, its installed version, its CVE ids and the version that fixes it. Move each named package to its fixed version or later, run the Cases again, and have them upload again.

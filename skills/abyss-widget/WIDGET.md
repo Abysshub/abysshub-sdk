@@ -37,7 +37,7 @@ The runtime is **Ubuntu 24.04 with Python 3.12**, in a virtualenv. Python is the
 
 ### What the uploader leaves out
 
-The uploader leaves out what no Widget can depend on: `.git`, `.venv`, `venv`, `node_modules`, `__pycache__`, `.ipynb_checkpoints`, `.DS_Store`, `*.egg-info` and similar caches anywhere in the tree, any folder holding a virtualenv, and an `output/` folder. A `.env` **at the root** is left out too, and its variables are copied into Creator Environment (see [Secrets](#secrets-creator-environment)). A project may not contain `.docx`, `.pptx`, `.xlsx`, `.xls`, `.zip`, `.rar` or `.tar.gz` files: convert a bundled spreadsheet to CSV, and a document template to HTML or Markdown.
+The uploader leaves out what no Widget can depend on: `.git`, `.venv`, `venv`, `node_modules`, `__pycache__`, `.ipynb_checkpoints`, `.DS_Store`, `*.egg-info` and similar caches anywhere in the tree, any folder holding a virtualenv, and an `output/` folder. A `.env` **at the root** is left out too, and its variables are copied into Creator Environment (see [Secrets](#secrets-creator-environment)). A root `Dockerfile` or `.dockerignore` uploads but isn't used, and the line under the tree says so: Abyss builds from `requirements.txt` and `requirements.system`, so whatever the Dockerfile installs belongs in those two files. A project may not contain `.docx`, `.pptx`, `.xlsx`, `.xls`, `.zip`, `.rar` or `.tar.gz` files: convert a bundled spreadsheet to CSV, and a document template to HTML or Markdown.
 
 ## The Fields: `interface.json`
 
@@ -138,6 +138,9 @@ A key, a password or a token lives in **Creator Environment**, the Widget's encr
 - A name is a letter or `_`, then letters, digits or `_`, at most 128 characters; a value is at most 8192 characters.
 - A Field and a secret never share a name: when they do, the Field wins and the secret is dropped.
 - Locally, the secrets live in a `.env` at the Widget folder's root (`NAME=value` lines), which the uploader keeps out of the upload and copies into Creator Environment. Keep that file out of version control. A Widget without secrets has no `.env`.
+- **`load_dotenv()` works as it is.** On Abyss the values are already in the environment, so the code reads them as it did locally. Code that opens the `.env` file itself (`open(".env")`, `dotenv_values()`) gets nothing on Abyss: read the environment instead.
+- **A re-picked `.env` keeps the website's values.** When the Creator uploads the folder again and its `.env` gives a different value for a name the Widget already has (a changed key, usually), the Widget keeps the website's value. The notice lists those names, never their values, and pressing **Use the file's values** saves the file's values for exactly those names. The press is offered only right after the pick.
+- **A name the Creator's account also sets.** When the `.env` gives it a different value, the file's value is saved on the Widget, so the Widget's own value wins, as it did locally. With the same value it is skipped, and the Widget uses the account's.
 
 ## Limits
 

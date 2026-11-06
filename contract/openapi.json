@@ -781,7 +781,7 @@
         }
       },
       "Forbidden": {
-        "description": "`payments_stopped`: a payment on your account was refunded or disputed, so it runs no paid Widget until AbyssHub has looked at it. Nothing was charged. Ask us to look from your Cave, whose address the message names. Your own Widgets, free ones and Free Runs still run. `account_stopped`: an Admin has stopped your account, so no key of it is accepted until the stop is lifted.",
+        "description": "`payments_stopped`: your bank disputed a payment, so paid runs are paused until it's settled. Nothing was charged. Ask us to look from your Cave, whose address the message names. Your own Widgets, free ones and Free Runs still run. `account_stopped`: an Admin has stopped your account, so no key of it is accepted until the stop is lifted.",
         "headers": {
           "Request-Id": {
             "$ref": "#/components/headers/RequestId"
@@ -795,7 +795,7 @@
             "example": {
               "error": {
                 "code": "payments_stopped",
-                "message": "A payment on this account was refunded or disputed, so it can't run paid Widgets until we have looked at it. Nothing was charged. Ask us to look from your Cave: https://abysshub.com/cave/your-username",
+                "message": "Your bank disputed a payment, so paid runs are paused until it's settled. Nothing was charged. Ask us to look from your Cave: https://abysshub.com/cave/your-username",
                 "doc_url": "https://abysshub.com/docs#payments_stopped"
               },
               "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
@@ -1546,7 +1546,7 @@
           {
             "const": "payments_stopped",
             "x-status": 403,
-            "description": "Ask us to look from your Cave, whose address the message names: a payment on your account was refunded or disputed, and paid runs stay stopped until AbyssHub has looked at it. Retrying will not help."
+            "description": "Ask us to look from your Cave, whose address the message names: your bank disputed a payment, and paid runs stay paused until it's settled. Retrying will not help."
           },
           {
             "const": "account_stopped",

@@ -106,7 +106,7 @@ The glossary is `CONTEXT.md` and the decisions are in `docs/adr/`, both created 
 ## Git and issues
 
 - The base branch is **`main`** (there is no `develop`). Branches and pull requests target it.
-- Issues live in this repo: `gh issue … -R Abysshub/abysshub-sdk`. The triage labels are `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`, plus `prod-cutover` for work that happens only at the prod cutover.
+- Issues live in this repo: `gh issue … -R Abysshub/abysshub-sdk`. The triage labels are `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
 
 ## Terminal output
 

@@ -1,7 +1,5 @@
 # abysshub
 
-Pre-release: the Abyss API opens soon.
-
 The official libraries for the [Abyss](https://abysshub.com) API, and an agent skill for making Abyss Widgets.
 
 | Folder | What it is |

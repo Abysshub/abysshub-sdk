@@ -1,7 +1,5 @@
 # abysshub
 
-Pre-release: the Abyss API opens soon.
-
 The official Python library for the [Abyss](https://abysshub.com) API.
 
 ```python

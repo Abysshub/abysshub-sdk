@@ -109,7 +109,7 @@ def main() -> int:
         sys.exit(f"No ABYSS_API_KEY: ask the Creator to put it in {port / '.env'}")
     base = base_url()
     if not available(base):
-        print(f"The Abyss step isn't available yet: {base} does not answer /v1. The Check ends with the local runs.")
+        print(f"Abyss can't be reached right now: {base} does not answer /v1. The Check ends with the local runs.")
         return 3
 
     widget = widget_id(args.widget)

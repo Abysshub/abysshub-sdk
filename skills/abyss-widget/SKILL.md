@@ -44,7 +44,7 @@ A Widget is one run: inputs in, work done, a Result and files out. When the tool
    Each run's `run.json`, `log.txt` and `output/` land in `work/runs/local/<sample>/`. Read them: a run that should succeed succeeded, its Result and files are what step 1 said, and the bad input failed with a clear sentence in its log. Fix and run again until that holds.
 4. **Put it on Abyss** by ABYSS.md.
 
-**Done when** the samples pass here, and the Creator has published it, or ABYSS.md's first step says the Abyss step isn't available yet and you have handed over the folder.
+**Done when** the samples pass here, and the Creator has published it, or ABYSS.md's first step says Abyss can't be reached right now and you have handed over the folder.
 
 ## The files of this skill
 

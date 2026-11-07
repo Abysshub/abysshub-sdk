@@ -2,15 +2,15 @@
 
 The Creator does this on the website, signed in; you prepare everything and tell them each step. It makes the Widget private, so only the Creator, and whoever they give its private link to, can run it.
 
-## 0. Is the Abyss step open yet?
+## 0. Can Abyss be reached?
 
-The Abyss step needs Abyss's API, `/v1`, which opens on abysshub.com soon. Check that it answers before you ask the Creator to do anything, at the address `check_abyss.py` will use (`ABYSS_BASE_URL` when it is set, in the shell or in `port/.env`):
+The Abyss step needs Abyss's API, `/v1`. Check that it answers before you ask the Creator to do anything, at the address `check_abyss.py` will use (`ABYSS_BASE_URL` when it is set, in the shell or in `port/.env`):
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" "${ABYSS_BASE_URL:-https://api.abysshub.com}/v1/openapi.json"
 ```
 
-Anything but `200` means the Abyss step isn't available yet. Tell the Creator so, end with the local runs (for a Port, write it into `CHECK.md`), and hand over the Widget folder for them to upload once Abyss opens.
+Anything but `200` means Abyss can't be reached right now. Tell the Creator so, end with the local runs (for a Port, write it into `CHECK.md`), and hand over the Widget folder for them to upload later.
 
 The website is the one whose API that is: abysshub.com for `https://api.abysshub.com`, and for an `ABYSS_BASE_URL` of `https://api.<site>`, `<site>`.
 

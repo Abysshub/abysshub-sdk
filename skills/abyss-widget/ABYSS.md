@@ -2,6 +2,8 @@
 
 The Creator does this on the website, signed in; you prepare everything and tell them each step. It makes the Widget private, so only the Creator, and whoever they give its private link to, can run it.
 
+Only when the Creator chose to put it on Abyss (PORT.md, step 3; SKILL.md, "Build a Widget", step 1). When they chose the folder only, skip every step here: make no thumbnail, ask for no API key, and run no Abyss Check. Hand over the Widget folder, the result of the local runs (for a Port, `CHECK.md` says the Abyss step was not asked for), and step 2's upload steps for later. It is the same ending as when Abyss can't be reached.
+
 ## 0. Can Abyss be reached?
 
 The Abyss step needs Abyss's API, `/v1`. Check that it answers before you ask the Creator to do anything, at the address `check_abyss.py` will use (`ABYSS_BASE_URL` when it is set, in the shell or in `port/.env`):
@@ -22,6 +24,14 @@ The website is the one whose API that is: abysshub.com for `https://api.abysshub
 - One input to run first: a Case marked `"abyss": true`, or a sample input for a built Widget, with its files at hand.
 
 ## 2. The Creator uploads and publishes it
+
+When you run on the Creator's computer, open the website's **Create** page, `https://<site>/widgets/create`, in their browser, and the Widget folder in their file manager:
+
+- macOS: `open "https://<site>/widgets/create"` and `open <widget>`
+- Linux: `xdg-open "https://<site>/widgets/create"` and `xdg-open <widget>`
+- Windows: `start "" "https://<site>/widgets/create"` and `start "" <widget>`
+
+Then tell them to drag that folder onto *Drag & drop your project folder here*. When you do not run on their computer (a cloud session, for example), give them the page's address and the folder's full path instead.
 
 Give the Creator these steps, with the names filled in:
 

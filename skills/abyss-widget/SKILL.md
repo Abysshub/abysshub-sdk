@@ -33,7 +33,7 @@ A Widget is one run: inputs in, work done, a Result and files out. When the tool
 
 ## Build a Widget
 
-1. **Shape it.** Agree with the Creator what one run takes (each input, its type, which are required) and what it hands back (the Result's keys, the files). Write that down as the Fields and the outputs, and check them against the limits.
+1. **Shape it.** Agree with the Creator what one run takes (each input, its type, which are required) and what it hands back (the Result's keys, the files). Write that down as the Fields and the outputs, and check them against the limits. When you agree on them, ask in the same message whether to put it on Abyss too, offering that first: *"When the samples pass here, do you want me to put it on Abyss too (you drag the folder once, then press Test Run and Publish), or only prepare the Widget folder?"*
 2. **Write it** by WIDGET.md: `interface.json`, `run.py` (inputs read through its `read()` helper, outputs under `output/`, secrets from the environment), `requirements.txt` pinned and passed by `pip-audit` (WIDGET.md, "Dependencies"), and the secrets' names for the Creator to put in `<widget>/.env`.
 3. **Run it here.** Write two or three sample inputs, plus one that should fail cleanly, as `work/cases/<sample>/case.json` beside the Widget folder (the format is in PORT.md, step 2), make a Python 3.12 virtualenv at `work/.venv` with the requirements, and run them all (`<this skill>` is the folder holding this file):
 
@@ -42,9 +42,9 @@ A Widget is one run: inputs in, work done, a Result and files out. When the tool
    ```
 
    Each run's `run.json`, `log.txt` and `output/` land in `work/runs/local/<sample>/`. Read them: a run that should succeed succeeded, its Result and files are what step 1 said, and the bad input failed with a clear sentence in its log. Fix and run again until that holds.
-4. **Put it on Abyss** by ABYSS.md.
+4. **Put it on Abyss** by ABYSS.md, when the Creator chose that in step 1. When they chose the folder only, end here, as ABYSS.md's opening says.
 
-**Done when** the samples pass here, and the Creator has published it, or ABYSS.md's first step says Abyss can't be reached right now and you have handed over the folder.
+**Done when** the samples pass here, and the Creator has published it; or they chose the folder only, or ABYSS.md's first step says Abyss can't be reached right now, and you have handed over the folder, the samples' local results and ABYSS.md's upload steps.
 
 ## The files of this skill
 

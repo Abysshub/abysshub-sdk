@@ -64,7 +64,7 @@ Store each Case as `port/cases/<case>/case.json`:
 
 - Each key of `input` is a Field's name; use the names you will propose in the Done List, and rename them if the Creator changes them. A file Field's value is `{"file": "<path inside the case folder>"}`, or a list of them for a multi-file Field; a date is `YYYY-MM-DD`; a number is a JSON number.
 - `needs` lists the secrets the run needs (step 5). Leave it out when there are none.
-- `"abyss": true` marks a Case the Creator agrees may run on Abyss. Leave it out for real client data, which stays on this machine.
+- `"abyss": true` marks a Case the Creator agrees may run on Abyss. Leave it out for real client data, which stays on this machine, and from every Case when the Creator chose the folder only (step 3).
 - `original/` holds what the original produced: its files, `result.json` when it answered with JSON, `log.txt` with what it printed (a traceback, for a Case that crashed it), and `EXPECTED.md` when the outputs were worked out rather than recorded.
 
 A model saved with `pickle` or `joblib` loads only with the library version that saved it. Read that version without running the file: `python3 -m pickletools model.pkl | grep -A1 _sklearn_version` (for scikit-learn; `numpy._core` in the listing means NumPy 2). Never unpickle a file you have not read this way.
@@ -115,9 +115,15 @@ Write `port/DONE-LIST.md` for this one tool. Before you write it, look for what 
   - **A set-up value** that is the same on every run stays a constant in `run.py`; one a caller may want to change becomes an optional Field; a private one is a secret.
   - **The original's outputs become the Result plus files**: what a program would read goes in the Result; documents, images and tables go in `output/`.
 
-Then show the Creator the whole text, and in the same message ask which Cases may run on Abyss (each one's run stays in their account, since the API cannot delete it; propose none yourself, since you cannot tell their real data from test data) and which secrets they will supply (step 5). Wait for them to confirm or correct it. **No Widget code is written before they confirm.**
+Then show the Creator the whole text, and in the same message ask:
 
-**Done when** the Creator has confirmed the Done List and said which Cases may go to Abyss, and each `case.json` says so.
+- whether to put it on Abyss too, or only prepare the Widget folder, offering Abyss first: *"When the Cases pass here, do you want me to put it on Abyss too (you drag the folder once, then press Test Run and Publish), or only prepare the Widget folder?"*;
+- when they want it on Abyss, which Cases may run there (each one's run stays in their account, since the API cannot delete it; propose none yourself, since you cannot tell their real data from test data);
+- which secrets they will supply (step 5).
+
+Wait for them to confirm or correct it. **No Widget code is written before they confirm.**
+
+**Done when** the Creator has confirmed the Done List and said whether it goes on Abyss or stays a folder; when it goes on Abyss, they have said which Cases may run there, and each `case.json` says so.
 
 ## 4. Sends
 
@@ -181,7 +187,9 @@ Write the verdicts into `port/CHECK.md`: one row per Case, with where it ran, th
 
 ## 8. The Check, on Abyss
 
-The Check runs once more on Abyss, so it covers the build, the runtime and the upload. Follow ABYSS.md: the Creator puts the Widget on Abyss privately and gives you its address and an API key; you run the Cases marked `"abyss": true`:
+When the Creator chose the folder only in step 3, skip this step: make no thumbnail, ask for no API key, and run nothing on Abyss. Write into `CHECK.md` that the Abyss step was not asked for, and hand it over (step 9).
+
+Otherwise the Check runs once more on Abyss, so it covers the build, the runtime and the upload. Follow ABYSS.md: the Creator puts the Widget on Abyss privately and gives you its address and an API key; you run the Cases marked `"abyss": true`:
 
 ```bash
 python3 -m venv port/.venv-check && port/.venv-check/bin/pip install abysshub
@@ -190,7 +198,7 @@ port/.venv-check/bin/python <this skill>/scripts/check_abyss.py <the Widget's ad
 
 It writes `port/runs/abyss/<case>/` the same way, prints the Widget's private link, and prints the ids of the runs it made. Judge those runs as in step 7, and add them to `CHECK.md` as rows of their own. A run made through the API carries no log, so a Case that should fail passes on Abyss when it failed with `widget_fault` and made none of its outputs; its sentence was judged locally. When `check_abyss.py` says the Abyss step isn't available yet, write that into `CHECK.md` and end the Check with the local runs.
 
-**Done when** every `"abyss": true` Case has a verdict from its run on Abyss, or `CHECK.md` says the Abyss step wasn't available.
+**Done when** every `"abyss": true` Case has a verdict from its run on Abyss, or `CHECK.md` says the Abyss step wasn't available or wasn't asked for.
 
 ## 9. Hand it over
 
@@ -201,3 +209,5 @@ Tell the Creator, in this order:
 3. How others reach it. Only the Creator can open a private Widget by its page, so they share its private link (`check_abyss.py` prints it), which anyone holding it may open and run, or they make it public.
 4. The ids of the runs made on Abyss. The API cannot delete a run, so they stay in the Creator's account; that is why only Cases they agreed to sent anything there.
 5. What is left to them: who runs it now (where a person ran the original by hand, that person fills the Widget's form; a program calls it through the API, and the Widget page's **API** panel shows the code), what fired the original (the trigger, the schedule) and now calls the Widget, every send the Port handed back instead of making, every pin you changed, and what the Done List kept as the original does it, as candidates for a next version.
+
+When the Widget did not go on Abyss (the Creator chose the folder only, or Abyss couldn't be reached), the Check covers this machine only. In place of 3 and 4, hand over the Widget folder's path, and ABYSS.md's upload steps (step 2) for when they put it on Abyss later.

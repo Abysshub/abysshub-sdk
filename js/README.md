@@ -1,6 +1,10 @@
 # abysshub
 
-The official JavaScript library for the [Abyss](https://abysshub.com) API.
+Run a hosted tool, an [Abyss](https://abysshub.com) Widget, from your own JavaScript or TypeScript code and get its result and files. This is the official JavaScript library for the Abyss API.
+
+- **Docs:** [abysshub.com/docs](https://abysshub.com/docs)
+- **For coding agents:** [abysshub.com/llms.txt](https://abysshub.com/llms.txt)
+- **To make a Widget:** the [`abyss-widget` agent skill](https://github.com/Abysshub/abysshub-sdk/tree/main/skills/abyss-widget)
 
 ```js
 import Abyss, { AbyssError } from "abysshub";

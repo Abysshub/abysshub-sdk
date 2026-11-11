@@ -1,6 +1,10 @@
 # abysshub
 
-The official libraries for the [Abyss](https://abysshub.com) API, and an agent skill for making Abyss Widgets.
+Share a script with a client or a colleague, or port an n8n flow, a notebook, or a Streamlit or Gradio app: on [Abyss](https://abysshub.com), it becomes a Widget, a hosted tool that anyone runs from its page or from their own code. This repo holds the `abyss-widget` agent skill, which makes the Widget with your coding agent, and the official JavaScript and Python libraries for the Abyss API, which run a Widget from your code and get its result and files.
+
+- **Docs:** [abysshub.com/docs](https://abysshub.com/docs)
+- **For coding agents:** [abysshub.com/llms.txt](https://abysshub.com/llms.txt)
+- **To make a Widget:** the [`abyss-widget` agent skill](skills/abyss-widget/SKILL.md)
 
 | Folder | What it is |
 |---|---|
@@ -25,7 +29,7 @@ npx skills add Abysshub/abysshub-sdk --skill abyss-widget -a claude-code
 
 Or copy the folder yourself: `skills/abyss-widget/` into `.claude/skills/` for Claude Code, or `.agents/skills/` for Codex and Cursor.
 
-Then ask your agent, for example, *"Port my n8n invoice flow to Abyss"* or *"Make an Abyss Widget that turns a CSV into a chart"*. Until the Abyss API opens, the skill checks a Widget on your machine and stops before the upload.
+Then ask your agent, for example, *"Share my invoice script with my client on Abyss"*, *"Port my n8n invoice flow to Abyss"* or *"Make an Abyss Widget that turns a CSV into a chart"*. Until the Abyss API opens, the skill checks a Widget on your machine and stops before the upload.
 
 ## License
 

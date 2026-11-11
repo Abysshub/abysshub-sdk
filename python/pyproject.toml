@@ -5,7 +5,19 @@ build-backend = "hatchling.build"
 [project]
 name = "abysshub"
 version = "0.0.0"
-description = "The official Python library for the Abyss API."
+description = "Run a hosted tool, an Abyss Widget, from your own Python code and get its result and files. The official library for the Abyss API."
+keywords = [
+    "abyss",
+    "abysshub",
+    "widget",
+    "run",
+    "hosted tools",
+    "python tools",
+    "automation",
+    "file upload",
+    "api client",
+    "sdk",
+]
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -20,7 +32,8 @@ classifiers = [
 dev = ["pytest"]
 
 [project.urls]
-Homepage = "https://abysshub.com"
+Homepage = "https://abysshub.com/docs#api"
+Documentation = "https://abysshub.com/docs"
 Source = "https://github.com/Abysshub/abysshub-sdk"
 Issues = "https://github.com/Abysshub/abysshub-sdk/issues"
 

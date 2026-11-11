@@ -1,6 +1,6 @@
 ---
 name: abyss-widget
-description: Builds an Abyss Widget, or ports a tool the user already has (an n8n flow, a Python script, a notebook, a Streamlit or Gradio app) into one and checks it on real uses. Use when the user wants to make, build or publish an Abyss (abysshub) Widget, or to port, move or bring a flow, script, notebook or app to Abyss.
+description: Shares a script with a client or a colleague by porting it, or an n8n flow, a notebook, a Streamlit or Gradio app, to an Abyss Widget they can run, and checks the Port on real uses; or builds a new Widget. Use when the user wants to share a script or tool with a client or a colleague, to port, move or bring an n8n flow, a Python script, a notebook, or a Streamlit or Gradio app to Abyss, or to make, build or publish an Abyss (abysshub) Widget.
 ---
 
 # Abyss Widget

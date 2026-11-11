@@ -1,9 +1,22 @@
 {
   "name": "abysshub",
   "version": "0.0.0",
-  "description": "The official JavaScript library for the Abyss API.",
+  "description": "Run a hosted tool, an Abyss Widget, from your own JavaScript or TypeScript code and get its result and files. The official library for the Abyss API.",
+  "keywords": [
+    "abyss",
+    "abysshub",
+    "widget",
+    "run",
+    "hosted tools",
+    "python tools",
+    "automation",
+    "file upload",
+    "api client",
+    "sdk",
+    "typescript"
+  ],
   "license": "MIT",
-  "homepage": "https://github.com/Abysshub/abysshub-sdk/tree/main/js#readme",
+  "homepage": "https://abysshub.com/docs#api",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Abysshub/abysshub-sdk.git",

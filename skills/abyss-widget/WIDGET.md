@@ -164,7 +164,7 @@ A run may call the internet, such as a hosted model's API.
 | exits 0 but `output/` is empty, or an output is over a limit | **failed** with `widget_fault` |
 | is still running at 30 minutes | **failed** with `budget_exceeded` |
 
-When the input is wrong (a PDF that is not an invoice, a CSV missing a column), print one plain sentence saying what is wrong and exit non-zero. A person who ran it on the website reads that sentence in the run's log. A program calling through the API gets only the failed run: `widget_fault` and *"Error encountered while executing run.py"*, never your sentence. Three failed runs in a row take a public Widget off the Catalog until its Creator's next succeeded run, so a bad input fails cleanly and a good input never fails.
+When the input is wrong (a PDF that is not an invoice, a CSV missing a column), print one plain sentence saying what is wrong and exit non-zero. A person who ran it on the website reads that sentence in the run's log. A program calling through the API gets only the failed run: `widget_fault` and *"Error encountered while executing run.py"*, never your sentence. After three failed runs in a row, a public Widget is not listed until its Creator's next succeeded run, so a bad input fails cleanly and a good input never fails.
 
 ## A complete `run.py`
 

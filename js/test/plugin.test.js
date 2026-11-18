@@ -7,13 +7,15 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
+const run = promisify(execFile);
+
 const repo = fileURLToPath(new URL("../../", import.meta.url));
 const claude = fileURLToPath(new URL("../node_modules/.bin/claude", import.meta.url));
 
 test("the repo passes Claude Code's plugin marketplace validator in strict mode", async () => {
   const config = await mkdtemp(join(tmpdir(), "claude-"));
   try {
-    const { stdout } = await promisify(execFile)(claude, ["plugin", "validate", "--strict", "--json", repo], {
+    const { stdout } = await run(claude, ["plugin", "validate", "--strict", "--json", repo], {
       env: { ...process.env, CLAUDE_CONFIG_DIR: config },
     });
     const report = JSON.parse(stdout);

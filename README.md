@@ -29,6 +29,15 @@ npx skills add Abysshub/abysshub-sdk --skill abyss-widget -a claude-code
 
 Or copy the folder yourself: `skills/abyss-widget/` into `.claude/skills/` for Claude Code, or `.agents/skills/` for Codex and Cursor.
 
+In Claude Code, you can install it as a plugin instead, so it is there in every session of yours, in every project. This repo is a plugin marketplace, `abysshub`; add it, then install the plugin:
+
+```
+/plugin marketplace add Abysshub/abysshub-sdk
+/plugin install abyss-widget@abysshub
+```
+
+The plugin holds the same `skills/abyss-widget/` files.
+
 Then ask your agent, for example, *"Share my invoice script with my client on Abyss"*, *"Port my n8n invoice flow to Abyss"* or *"Make an Abyss Widget that turns a CSV into a chart"*. Until the Abyss API opens, the skill checks a Widget on your machine and stops before the upload.
 
 ## License

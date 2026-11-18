@@ -1,0 +1,22 @@
+{
+  "name": "abysshub",
+  "owner": {
+    "name": "Abyssal Corporation",
+    "url": "https://abysshub.com"
+  },
+  "metadata": {
+    "description": "The abyss-widget agent skill, which makes an Abyss Widget with your coding agent."
+  },
+  "plugins": [
+    {
+      "name": "abyss-widget",
+      "description": "Shares a script with a client or a colleague by porting it, or an n8n flow, a notebook, a Streamlit or Gradio app, to an Abyss Widget, or builds a new Widget.",
+      "source": "./",
+      "strict": false,
+      "skills": ["./skills/abyss-widget"],
+      "homepage": "https://abysshub.com/docs",
+      "repository": "https://github.com/Abysshub/abysshub-sdk",
+      "license": "MIT"
+    }
+  ]
+}

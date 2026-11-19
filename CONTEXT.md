@@ -1,6 +1,6 @@
 # abysshub libraries
 
-The public `abysshub` libraries for JavaScript and Python, and the agent skill that ships with them. Platform words — **Widget**, **Creator**, **Result**, **Creator Environment**, **Test Run** — are used exactly as the api's glossary defines them (`abysshub-api/app/CONTEXT.md`) and never redefined here.
+The public `abysshub` libraries for JavaScript and Python, and the agent skill that ships with them. Platform words — **Widget**, **Creator**, **Result**, **Creator Environment**, **Test Run**, **Listing Fields**, **Publish File**, **Test Inputs**, **Manage Widgets**, **Junk** — are used exactly as the api's glossary defines them (`abysshub-api/app/CONTEXT.md`) and never redefined here. `docs/adr/0001` quotes what the last five mean for the command.
 
 ## Language
 

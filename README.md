@@ -38,7 +38,18 @@ In Claude Code, you can install it as a plugin instead, so it is there in every 
 
 The plugin holds the same `skills/abyss-widget/` files.
 
-Then ask your agent, for example, *"Share my invoice script with my client on Abyss"*, *"Port my n8n invoice flow to Abyss"* or *"Make an Abyss Widget that turns a CSV into a chart"*. Until the Abyss API opens, the skill checks a Widget on your machine and stops before the upload.
+Then ask your agent, for example, *"Share my invoice script with my client on Abyss"*, *"Port my n8n invoice flow to Abyss"* or *"Make an Abyss Widget that turns a CSV into a chart"*. When your Abyss API key has **Manage Widgets**, the agent publishes the Widget itself, privately, and ends with its link; without one, it walks you through the website's upload. When the Abyss API can't be reached, it checks the Widget on your machine and hands you the folder.
+
+## Publish a Widget folder
+
+The Python package ships the `abysshub` command, which publishes a Widget folder as the website's Publish page does: it uploads the folder, makes the Test Run from `test_inputs.json`, saves the listing from `abyss.json` and prints the Widget's link. It needs a key with Manage Widgets.
+
+```bash
+export ABYSS_API_KEY=abyss_sk_...   # a key with Manage Widgets, from your Cave
+uvx abysshub publish my-widget      # or: pip install abysshub && abysshub publish my-widget
+```
+
+Run it again in the same folder to publish a new version. `abysshub status my-widget` shows the Widget on Abyss beside the folder, and `abysshub pull my-widget` takes a listing changed on the website into the folder.
 
 ## License
 

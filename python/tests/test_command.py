@@ -46,11 +46,9 @@ def test_command(recording: dict[str, Any], monkeypatch: pytest.MonkeyPatch, cap
             for path, content in before.items():
                 if path not in outcome["written"]:
                     assert (dir / path).read_bytes() == content, f"{path} was left as it was"
-            # A root .env's names are printed, never its values.
-            for exchange in recording["exchanges"]:
-                if exchange["request"]["path"].endswith("/environment") and "body" in exchange["request"]:
-                    for value in exchange["request"]["body"]["variables"].values():
-                        assert value not in printed.out + printed.err, "printed a value of the .env"
+            # A root .env's names are printed, never its values, an Abyss key left out included.
+            for value in parse_env(call["files"].get(".env", "")).values():
+                assert not value or value not in printed.out + printed.err, "printed a value of the .env"
     finally:
         server.close()
 

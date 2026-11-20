@@ -153,9 +153,10 @@ def _read_folder(folder: Path) -> tuple[_Folder, list[tuple[str, str]]]:
     if test_inputs is not None and (interface is not None or not has_interface):
         test_input = _check_test_inputs(folder, interface or [], test_inputs, faults)
     environment = None
-    if (folder / ".env").is_file():
+    root_env = folder / ".env"
+    if root_env.is_file():
         try:
-            environment = parse_env((folder / ".env").read_text("utf-8"))
+            environment = parse_env(root_env.read_text("utf-8"))
         except (OSError, ValueError) as error:
             faults.append(("env_invalid", f"The root .env cannot be read: {error}"))
     return _Folder(publish_file or {}, interface, test_input, environment), faults

@@ -1,0 +1,40 @@
+{
+  "description": "abysshub status on a folder that was never published: its Publish File has no widget block. It says so, sends nothing and exits zero.",
+  "call": {
+    "command": [
+      "status"
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "Word Counter",
+        "tags": [
+          "text"
+        ],
+        "description": "Counts the words in a text.",
+        "thumbnail": "cover.png"
+      },
+      "test_inputs.json": {
+        "text": "one two three"
+      },
+      "interface.json": [
+        {
+          "type": "text-field",
+          "name": "text",
+          "label": "Text",
+          "isRequired": true
+        }
+      ],
+      "run.py": "import os\nprint(len(os.environ['text'].split()))\n",
+      "requirements.txt": "",
+      "cover.png": "PNG a cover"
+    }
+  },
+  "exchanges": [],
+  "outcome": {
+    "exit": 0,
+    "printed": [
+      "never published"
+    ],
+    "written": {}
+  }
+}

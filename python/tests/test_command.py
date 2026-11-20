@@ -24,7 +24,12 @@ def test_command(recording: dict[str, Any], monkeypatch: pytest.MonkeyPatch, cap
         with with_files(call["files"]) as dir:
             monkeypatch.setenv("ABYSS_API_KEY", KEY)
             monkeypatch.setenv("ABYSS_BASE_URL", server.base)
-            exit = main([*call["command"], str(dir)])
+            before = {path: (dir / path).read_bytes() for path in call["files"]}
+            commands = [call["command"], *(call.get("then") or [])]
+            # Each command before the last must go through.
+            for command in commands[:-1]:
+                assert main([*command, str(dir)]) == 0, capsys.readouterr().err
+            exit = main([*commands[-1], str(dir)])
             printed = capsys.readouterr()
 
             assert server.problems == []
@@ -33,7 +38,13 @@ def test_command(recording: dict[str, Any], monkeypatch: pytest.MonkeyPatch, cap
             for text in outcome["printed"]:
                 assert text in printed.out + printed.err, f"printed {text}"
             for path, fields in outcome["written"].items():
-                assert_fields(json.loads((dir / path).read_text("utf-8")), fields, path)
+                if isinstance(fields, str):
+                    assert (dir / path).read_text("utf-8") == fields, path
+                else:
+                    assert_fields(json.loads((dir / path).read_text("utf-8")), fields, path)
+            for path, content in before.items():
+                if path not in outcome["written"]:
+                    assert (dir / path).read_bytes() == content, f"{path} was left as it was"
     finally:
         server.close()
 

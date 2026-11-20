@@ -1,0 +1,389 @@
+{
+  "description": "abysshub pull on a folder published already, whose listing moved on Abyss since: its title and its thumbnail were changed on the website, and its code did not move. It writes the website's title into the Publish File and the website's thumbnail to the path it names, and the new listing revision into the widget block, leaving every other file as it was. Then abysshub publish goes through: it reads the listing, finds nothing moved and nothing that differs, sends no thumbnail and saves no Listing Field, and publishes version 3.",
+  "call": {
+    "command": [
+      "pull"
+    ],
+    "then": [
+      [
+        "publish"
+      ]
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "Word Counter",
+        "tags": [
+          "text"
+        ],
+        "description": "Counts the words in a text.",
+        "thumbnail": "cover.png",
+        "widget": {
+          "id": "widget_1662",
+          "version": 2,
+          "listing_revision": "1b7e09c4d2f5a638",
+          "thumbnail_sha256": "cf3429c853401a5115bc2425bf42bc7ed1cfb436730eadf57d0657fd3f75587e"
+        }
+      },
+      "test_inputs.json": {
+        "text": "one two three"
+      },
+      "interface.json": [
+        {
+          "type": "text-field",
+          "name": "text",
+          "label": "Text",
+          "isRequired": true
+        }
+      ],
+      "run.py": "import os\nprint(len(os.environ['text'].split()))\n",
+      "requirements.txt": "",
+      "cover.png": "PNG a cover"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/widgets/widget_1662/listing",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_M1o2V3e4D5l6I7s8T9i0N1XX"
+        },
+        "body": {
+          "id": "widget_1662",
+          "title": "Word Tally",
+          "description": "Counts the words in a text.",
+          "tags": [
+            "text"
+          ],
+          "visibility": "private",
+          "price": 0,
+          "free_runs": 0,
+          "thumbnail": "{base}/storage/abysshub-public/widget/thumbnail/Yq7c2P.png",
+          "listing_revision": "7d3f18b0e2c9a645",
+          "live_version": 2
+        }
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "GET",
+        "path": "/storage/abysshub-public/widget/thumbnail/Yq7c2P.png",
+        "headers": {
+          "Range": null
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "image/png"
+        },
+        "text": "PNG the website's cover"
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/key",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_K1e2Y3m4A5n6A7g8E9a0G1n2"
+        },
+        "body": {
+          "name": "publish from my laptop",
+          "key": "abyss_sk_…7c2e",
+          "user": {
+            "id": 412,
+            "name": "ada"
+          },
+          "spend_cap": 10,
+          "spent_this_month": 0,
+          "manage_widgets": true,
+          "created_at": "2026-11-20T08:00:00Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/widgets/widget_1662/listing",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_L2i3S4t5I6n7G8a9G0a1I2nX"
+        },
+        "body": {
+          "id": "widget_1662",
+          "title": "Word Tally",
+          "description": "Counts the words in a text.",
+          "tags": [
+            "text"
+          ],
+          "visibility": "private",
+          "price": 0,
+          "free_runs": 0,
+          "thumbnail": "{base}/storage/abysshub-public/widget/thumbnail/Yq7c2P.png",
+          "listing_revision": "7d3f18b0e2c9a645",
+          "live_version": 2
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/versions",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "base_version": 2
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Request-Id": "req_N3V2e3R4s5I6o7N8o9P0e1N2"
+        },
+        "body": {
+          "version": 3,
+          "base_version": 2,
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "widgets/1a2b/v3/${filename}",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+              "X-Amz-Signature": "fake-signature-a2bv2"
+            },
+            "prefix": "widgets/1a2b/v3",
+            "max_bytes": 524288000,
+            "expires_at": "2026-11-20T10:15:00Z"
+          },
+          "junk": {
+            "names": [
+              ".git",
+              "node_modules",
+              "__pycache__",
+              ".venv",
+              "*.egg-info"
+            ],
+            "markers": [
+              "pyvenv.cfg",
+              "conda-meta/"
+            ],
+            "root": [
+              ".env",
+              ".env.*"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v3/interface.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv2",
+          "file": "[{\"type\": \"text-field\", \"name\": \"text\", \"label\": \"Text\", \"isRequired\": true}]"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v3/requirements.txt",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv2",
+          "file": ""
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v3/run.py",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv2",
+          "file": "import os\nprint(len(os.environ['text'].split()))\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v3/test_inputs.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv2",
+          "file": "{\"text\": \"one two three\"}"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/versions/3/commit",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "interface": [
+            {
+              "type": "text-field",
+              "name": "text",
+              "label": "Text",
+              "isRequired": true
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_N3C2o3M4m5I6t7T8e9D0a1B2"
+        },
+        "body": {
+          "widget": "widget_1662",
+          "version": 3,
+          "dropped": []
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "text": "one two three"
+          },
+          "version": 3
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_N3P2r3E4s5S6t7E8s9T0r1U2",
+          "Location": "{base}/v1/runs/run_N3R2u3N4v5E6r7S8i9O0n1A2"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_N3R2u3N4v5E6r7S8i9O0n1A2",
+          "widget": "widget_1662",
+          "status": "succeeded",
+          "price": 0,
+          "result": null,
+          "output_files": [],
+          "files": "ready",
+          "error": null,
+          "created_at": "2026-11-20T09:15:02Z",
+          "started_at": "2026-11-20T09:15:04Z",
+          "ended_at": "2026-11-20T09:15:31Z",
+          "logs": [
+            "3"
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/publish",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_P1u2B3l4I5s6H7v8E9r0S1XX"
+        },
+        "body": {
+          "id": "widget_1662",
+          "name": "Word Tally",
+          "description": "Counts the words in a text.",
+          "url": "https://abysshub.com/w/Wc8n3Rt5Yb",
+          "price": 0,
+          "free_runs": null,
+          "input_schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "exit": 0,
+    "printed": [
+      "\"Word Tally\"",
+      "\"Word Counter\"",
+      "https://abysshub.com/w/Wc8n3Rt5Yb"
+    ],
+    "written": {
+      "abyss.json": {
+        "title": "Word Tally",
+        "description": "Counts the words in a text.",
+        "widget": {
+          "id": "widget_1662",
+          "version": 3,
+          "listing_revision": "7d3f18b0e2c9a645",
+          "thumbnail_sha256": "71595b4c693127c0faedcac7ff26ed576e9231343107d51168aa3b00e36b46d4"
+        }
+      },
+      "cover.png": "PNG the website's cover"
+    }
+  }
+}

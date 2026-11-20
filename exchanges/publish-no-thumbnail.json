@@ -1,0 +1,65 @@
+{
+  "description": "abysshub publish on a folder that was never published, whose Publish File names no thumbnail and whose Test Inputs are not valid JSON: it prints both faults and exits non-zero, after reading the key and before any request that changes a Widget.",
+  "call": {
+    "command": [
+      "publish"
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "Word Counter",
+        "tags": [
+          "text"
+        ],
+        "description": "Counts the words in a text."
+      },
+      "test_inputs.json": "{\"text\": \"one two three\",\n",
+      "interface.json": [
+        {
+          "type": "text-field",
+          "name": "text",
+          "label": "Text",
+          "isRequired": true
+        }
+      ],
+      "run.py": "print('words')\n",
+      "requirements.txt": "\n"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/key",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_K1e2Y3n4O5t6H7u8M9b0N1a2"
+        },
+        "body": {
+          "name": "publish from my laptop",
+          "key": "abyss_sk_…7c2e",
+          "user": {
+            "id": 412,
+            "name": "ada"
+          },
+          "spend_cap": 10,
+          "spent_this_month": 0,
+          "manage_widgets": true,
+          "created_at": "2026-11-20T08:00:00Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "exit": 1,
+    "printed": [
+      "thumbnail_missing",
+      "test_inputs_invalid"
+    ],
+    "written": {}
+  }
+}

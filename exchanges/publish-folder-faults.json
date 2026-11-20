@@ -1,0 +1,89 @@
+{
+  "description": "abysshub publish on a folder that shows its faults on its own, and a key without Manage Widgets: before any request that changes a Widget, it prints every fault in one run, each with its code, and exits non-zero. The folder has no run.py and no requirements.txt; the Publish File has no title and no tag, and its thumbnail names no image file; the Test Inputs name a Field that interface.json does not have, leave out a required Field that has no default, and give a file Field a path outside the folder and a path to no file. The key is read with GET /v1/key, and nothing else is sent.",
+  "call": {
+    "command": [
+      "publish"
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "",
+        "tags": [],
+        "description": "Counts the words in a text.",
+        "thumbnail": "cover.txt"
+      },
+      "cover.txt": "not an image\n",
+      "test_inputs.json": {
+        "txt": "one two three",
+        "docs": [
+          "../outside.txt",
+          "samples/missing.txt"
+        ]
+      },
+      "interface.json": [
+        {
+          "type": "text-field",
+          "name": "text",
+          "label": "Text",
+          "isRequired": true
+        },
+        {
+          "type": "file",
+          "name": "docs",
+          "label": "Documents",
+          "isRequired": false,
+          "mimes": [
+            "txt"
+          ],
+          "multiple": true
+        }
+      ],
+      "main.py": "print('words')\n"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/key",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_K1e2Y3n4O5m6A7n8A9g0E1s2"
+        },
+        "body": {
+          "name": "publish from my laptop",
+          "key": "abyss_sk_…7c2e",
+          "user": {
+            "id": 412,
+            "name": "ada"
+          },
+          "spend_cap": 10,
+          "spent_this_month": 0,
+          "manage_widgets": false,
+          "created_at": "2026-11-20T08:00:00Z"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "exit": 1,
+    "printed": [
+      "run_py_missing",
+      "requirements_missing",
+      "title_missing",
+      "tag_missing",
+      "thumbnail_not_image",
+      "test_input_unknown",
+      "test_input_missing",
+      "test_input_file_missing",
+      "../outside.txt",
+      "samples/missing.txt",
+      "manage_widgets_required"
+    ],
+    "written": {}
+  }
+}

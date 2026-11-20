@@ -36,3 +36,22 @@ def test_command(recording: dict[str, Any], monkeypatch: pytest.MonkeyPatch, cap
                 assert_fields(json.loads((dir / path).read_text("utf-8")), fields, path)
     finally:
         server.close()
+
+
+def test_publish_without_a_key_prints_every_fault_and_sends_nothing(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    server = Replay({"exchanges": []}, KEY)
+    try:
+        with with_files({"run.py": "print('words')\n", "requirements.txt": "\n"}) as dir:
+            monkeypatch.delenv("ABYSS_API_KEY", raising=False)
+            monkeypatch.setenv("ABYSS_BASE_URL", server.base)
+            exit = main(["publish", str(dir)])
+            printed = capsys.readouterr()
+
+            assert server.problems == []
+            assert exit == 1
+            assert "publish_file_missing" in printed.err
+            assert "invalid_api_key" in printed.err
+    finally:
+        server.close()

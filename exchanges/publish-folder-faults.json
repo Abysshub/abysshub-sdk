@@ -84,10 +84,6 @@
       "samples/missing.txt",
       "manage_widgets_required"
     ],
-    "written": {
-      "abyss.json": {
-        "title": ""
-      }
-    }
+    "written": {}
   }
 }

@@ -95,6 +95,7 @@ def _read_folder(folder: Path) -> tuple[_Folder, list[tuple[str, str]]]:
     interface = _read_json(folder / INTERFACE, "interface", list, faults) if has_interface else None
     test_inputs = _read_json(folder / TEST_INPUTS, "test_inputs", dict, faults) if (folder / TEST_INPUTS).is_file() else {}
     test_input: dict[str, Any] = {}
+    # An invalid interface.json skips the Field checks rather than calling every Test Input unknown.
     if test_inputs is not None and (interface is not None or not has_interface):
         test_input = _check_test_inputs(folder, interface or [], test_inputs, faults)
     return _Folder(publish_file or {}, interface, test_input), faults
@@ -134,7 +135,7 @@ def _check_test_inputs(
     for name in test_inputs:
         if name not in fields:
             faults.append(("test_input_unknown", f"{TEST_INPUTS} names {name!r}, which {INTERFACE} has no Field for."))
-    defaults = {name: field["default"] for name, field in fields.items() if "default" in field and name not in test_inputs}
+    defaults = {name: field["default"] for name, field in fields.items() if "default" in field}
     test_input = {**defaults, **test_inputs}
     for name, field in fields.items():
         value = test_input.get(name)

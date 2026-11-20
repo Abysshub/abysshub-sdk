@@ -32,7 +32,9 @@
   "exchanges": [],
   "outcome": {
     "exit": 0,
-    "printed": [],
+    "printed": [
+      "never published"
+    ],
     "written": {}
   }
 }

@@ -130,7 +130,8 @@
       "\"Word Counter\"",
       "version 3",
       "OPENAI_API_KEY",
-      "REGION"
+      "REGION",
+      "moved on Abyss"
     ],
     "written": {}
   }

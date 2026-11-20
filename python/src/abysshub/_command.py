@@ -13,7 +13,6 @@ from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
 from ._client import Abyss, _expect, _has_ended, _is_key, _is_upload, _is_widget
 from ._error import AbyssError
@@ -457,11 +456,8 @@ def pull(abyss: Abyss, folder: Path, publish_file: dict[str, Any]) -> None:
             publish_file[name] = listing[name]
             changed = True
     url = listing["thumbnail"]
-    if isinstance(url, str) and url:
-        if not thumbnail:
-            suffix = Path(urlsplit(url).path).suffix.lower()
-            thumbnail = f"thumbnail{suffix if suffix in IMAGES else '.png'}"
-            publish_file["thumbnail"] = thumbnail
+    # Only to the path the Publish File names: a path the command chose could be one of the folder's files.
+    if thumbnail and isinstance(url, str) and url:
         answered, read = abyss._download(url, None)
         data = _downloaded("the thumbnail", answered, read())
         path = folder / thumbnail

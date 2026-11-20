@@ -46,6 +46,10 @@ def main(argv: list[str] | None = None) -> int:
         if error.request_id:
             print(f"request_id: {error.request_id}", file=sys.stderr)
         return 1
+    except OSError as error:
+        # A file the folder names, such as the thumbnail or a Test Input, is missing or unreadable.
+        print(f"abysshub: stopped: file_unreadable: {error}", file=sys.stderr)
+        return 1
     return 0
 
 
@@ -59,8 +63,12 @@ def publish(abyss: Abyss, folder: Path) -> str:
     if not isinstance(publish_file, dict):
         raise AbyssError("publish_file_invalid", f"{PUBLISH_FILE} is not a JSON object.")
     test_inputs = _read_json(folder / TEST_INPUTS, "test_inputs_invalid") if (folder / TEST_INPUTS).is_file() else {}
+    if not isinstance(test_inputs, dict):
+        raise AbyssError("test_inputs_invalid", f"{TEST_INPUTS} is not a JSON object.")
     interface = _read_json(folder / INTERFACE, "interface_invalid") if (folder / INTERFACE).is_file() else None
     block = publish_file.get("widget") or {}
+    if not isinstance(block, dict):
+        raise AbyssError("publish_file_invalid", f"The widget block of {PUBLISH_FILE} is not a JSON object.")
     if "version" in block:
         raise AbyssError(
             "widget_published",

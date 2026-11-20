@@ -207,18 +207,21 @@ class AsyncAbyss(_Base[AsyncRun]):
     async def _upload(self, call: _Call, widget_url: str, field: str, filename: str, data: bytes) -> str:
         """Asks for an upload, sends the file to storage and answers the upload's id."""
         grant = await self._grant(call, widget_url, field, filename, len(data))
+        await self._store(call, grant.upload.url, grant.upload.fields, field, filename, data)
+        return grant.id
+
+    async def _store(
+        self, call: _Call, url: str, fields: dict[str, str], param: str, filename: str, data: bytes
+    ) -> None:
+        """Sends a file to storage with an S3 POST form: every entry of ``fields``, then the file."""
         stored: httpx.Response | httpx.TransportError
         try:
             stored = await self._http.post(
-                grant.upload.url,
-                data=grant.upload.fields,
-                files={"file": (filename, data)},
-                timeout=self._timeouts(call),
+                url, data=fields, files={"file": (filename, data)}, timeout=self._timeouts(call)
             )
         except httpx.TransportError as error:
             stored = error
-        self._stored(call, field, filename, stored)
-        return grant.id
+        self._stored(call, param, filename, stored)
 
     async def _download(self, url: str, range_header: str | None) -> tuple[int, Callable[[], Awaitable[bytes]]]:
         """Opens an output file in storage, without the API key, with a ``Range`` header or

@@ -5,7 +5,7 @@ The official libraries for the Abyss API (`/v1`): **`abysshub`** for JavaScript 
 - **`js/`** is the npm package `abysshub`: TypeScript, shipped as ESM with types.
 - **`python/`** is the PyPI package `abysshub`: Python, with plain dataclasses and `py.typed`.
 - **`n8n/`** is the n8n community node `n8n-nodes-abysshub`: one node, **Abyss**, calling `/v1` through n8n's own HTTP helper, with no runtime dependencies (n8n's verified-node rules). `release.yml` publishes it beside the JS package, with provenance, which n8n's verification needs (sdk #59); `npm test` there replays the exchanges its operations make and runs n8n's scanner rules.
-- **`exchanges/`** holds the recorded exchanges. Each one is a JSON file of requests and responses, including chunks with leading spaces and cuts. A tiny fake server replays them. **Both libraries pass the same exchanges, with the same outcome.**
+- **`exchanges/`** holds the recorded exchanges. Each one is a JSON file of requests and responses, including chunks with leading spaces and cuts. A tiny fake server replays them. **Both libraries pass the same exchanges, with the same outcome,** except a recorded command (`call.command`): the `abysshub` command and the routes that change a Widget are the Python package's alone, so only `pytest` replays them (ADR-0001).
 - **`contract/openapi.json`** is `/v1`'s contract, copied from the api. Every recorded body is validated against it. It is never edited here (see "The contract file").
 - **`live/`** is the nightly live run against dev (see "The nightly live run"): `live.mjs` and `live.py` make the same checks through each library, and `widget/` is the source of the probe Widget they press.
 - **`skills/abyss-widget/`** is the public agent skill (sdk #45) that teaches a coding agent to build a Widget, or Port a tool (`CONTEXT.md`'s Port, Case, Done List and Check). It sits outside every package and ships in none. Its `WIDGET.md` quotes the platform's Widget facts from the api, which this repo cannot read: a platform change to them changes that file too. Its `scripts/check_abyss.py` calls the Python library, so a change to the library's public surface keeps it working, as with `live/`.
@@ -60,6 +60,16 @@ The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and
 - **Files:** `file(path)` is the form the docs show; native files and bytes are accepted too, and a string passes through as an `https` URL or an upload id. The library uploads once and retries only the press. `run.save(dir)` saves every output file, and each file has `save()` and `read()`; an expired URL is refreshed once by re-reading the run.
 - **The import shape:** the api's per-Widget code fixes it: `import Abyss, { file } from "abysshub"` in JS (`Abyss` is the default export, and the named `Abyss` is the same class), `const { Abyss, file } = require("abysshub")` from CommonJS on Node 20.19+ and 22.12+ (the exports map's last condition is `"default"`, on the same ES module file; there is no CommonJS build), and `from abysshub import Abyss, file` in Python. None may break.
 - **The naming rule:** returned data keeps `/v1`'s names in both languages. The library's own options follow each language (JS `maxPrice`, Python `max_price`). A Field's name is never converted.
+
+## The command's own rules
+
+The Python package ships the command `abysshub` (`[project.scripts]`, and `python -m abysshub`), decided by `docs/adr/0001`. The JavaScript package and the n8n node have none.
+
+- **`abysshub publish <folder>`** does what a person does on the website's Publish page, through the routes that change a Widget: it makes a Draft and writes its id into the Publish File at once, opens a version, sends each file under its path, commits with `interface.json` as the Widget Interface, makes the Test Run from the Test Inputs and waits for it as `run()` waits, saves the Listing Fields and the thumbnail, publishes, writes the `widget` block and prints the link the api answers.
+- **The two files:** the Publish File `abyss.json` (the Listing Fields, the thumbnail's path, and the `widget` block the command writes; `visibility` is `private` unless it says) and the Test Inputs `test_inputs.json` (one value for each Field; a file Field's value is a path in the folder).
+- **What it never sends:** what the Junk list names (the api answers it when a version opens; the command keeps no copy), the Publish File, its thumbnail, and a root `.env` with its `.env.*` variants. It prints each one it left out.
+- **A stop:** the command asks nothing at a prompt. Every stop exits non-zero and prints its `code`. A failed Test Run prints the run's logs and publishes nothing; the Draft's id and its Candidate (`widget.candidate`) are already in the Publish File, so the next `publish` takes up the same Draft.
+- **No new dependency:** it uses `httpx` through the client, and runs on Python 3.9.
 
 ## House rules
 

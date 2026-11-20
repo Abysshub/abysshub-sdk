@@ -29,7 +29,8 @@ function assertFields(actual, expected, where) {
   }
 }
 
-for (const recording of await loadExchanges()) {
+// A recorded command (`call.command`) is the Python package's alone: pytest replays it.
+for (const recording of (await loadExchanges()).filter(({ call }) => !call.command)) {
   const { method = "run", input = {}, files = {}, save, wake, client = {} } = recording.call;
   test(`${method}(): ${recording.name}`, async () => {
     const server = await replay(recording, { key: KEY });

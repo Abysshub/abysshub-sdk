@@ -1,5 +1,6 @@
 """Every recorded exchange the Python library covers, replayed through the fake server,
-by ``Abyss`` and by ``AsyncAbyss``. Each must reach the same outcome as in JS."""
+by ``Abyss`` and by ``AsyncAbyss``. Each must reach the same outcome as in JS. A
+recorded command is the Python package's alone, and ``test_command.py`` replays it."""
 from __future__ import annotations
 
 import asyncio
@@ -15,7 +16,7 @@ from abysshub import Abyss, AbyssError, AsyncAbyss, AsyncRun, FilesAsleepError, 
 KEY = "abyss_sk_fake_for_tests"
 FILES_ASLEEP = {"files_asleep", "files_waking"}
 """The codes ``run.save()`` raises as ``FilesAsleepError``."""
-RECORDINGS = load_exchanges()
+RECORDINGS = [recording for recording in load_exchanges() if "command" not in recording["call"]]
 
 
 def assert_fields(actual: Any, expected: Any, where: str) -> None:

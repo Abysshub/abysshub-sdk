@@ -228,23 +228,29 @@ class _Base(Generic[R]):
         max_price: float | None,
         idempotency_key: str | None,
         hold: bool,
+        version: int | None = None,
     ) -> tuple[dict[str, str], bytes]:
-        """The press's headers and body, with ``"wait": false`` unless it holds."""
+        """The press's headers and body, with ``"wait": false`` unless it holds, and a
+        Test Run's ``version``."""
         body: dict[str, Any] = {"input": input}
         if max_price is not None:
             body["max_price"] = max_price
         if not hold:
             body["wait"] = False
+        if version is not None:
+            body["version"] = version
         headers = {
             "Content-Type": "application/json",
             "Idempotency-Key": idempotency_key if idempotency_key is not None else str(uuid.uuid4()),
         }
         return headers, json.dumps(body).encode()
 
-    def _grant_body(self, field: str, filename: str, size: int | None) -> bytes:
+    def _grant_body(self, field: str, filename: str, size: int | None, version: int | None = None) -> bytes:
         body: dict[str, Any] = {"field": field, "filename": filename}
         if size is not None:
             body["size"] = size
+        if version is not None:
+            body["version"] = version
         return json.dumps(body).encode()
 
     def _stored(self, call: _Call, field: str, filename: str, stored: httpx.Response | httpx.TransportError) -> None:
@@ -320,7 +326,7 @@ class _Base(Generic[R]):
         Every other refusal raises at once."""
         request_id = answer.headers.get("request-id")
         parsed = _parse(answer.text)
-        if answer.status in (200, 202):
+        if 200 <= answer.status < 300:
             run = parsed if _is_run(parsed) else None
             if run is not None:
                 call.seen = run
@@ -421,38 +427,42 @@ class Abyss(_Base[Run]):
         max_price: float | None,
         idempotency_key: str | None,
         hold: bool,
+        version: int | None = None,
     ) -> _Reply:
         """Uploads the input's files and sends the press, with ``"wait": false`` unless it
-        holds. Its retries send the same body and ``Idempotency-Key``, so the uploads are
-        never redone."""
+        holds, and with ``version`` as a Test Run of that Candidate. Its retries send the
+        same body and ``Idempotency-Key``, so the uploads are never redone."""
         widget_url = self._widget_url(widget)
         uploaded = upload_files(
-            input, lambda field, filename, data: self._upload(call, widget_url, field, filename, data)
+            input, lambda field, filename, data: self._upload(call, widget_url, field, filename, data, version)
         )
-        headers, body = self._press_request(uploaded, max_price, idempotency_key, hold)
+        headers, body = self._press_request(uploaded, max_price, idempotency_key, hold, version)
         return self._send(call, "POST", f"{widget_url}/runs", headers, body)
 
-    def _grant(self, call: _Call, widget_url: str, field: str, filename: str, size: int | None) -> Upload:
+    def _grant(
+        self, call: _Call, widget_url: str, field: str, filename: str, size: int | None, version: int | None = None
+    ) -> Upload:
         """Asks for an upload with ``POST /v1/widgets/{widget}/uploads``."""
-        body = self._grant_body(field, filename, size)
+        body = self._grant_body(field, filename, size, version)
         grant = self._send(call, "POST", f"{widget_url}/uploads", {"Content-Type": "application/json"}, body)
         return parse_upload(_expect(grant, _is_upload, "The upload answered without an id and a form."))
 
-    def _upload(self, call: _Call, widget_url: str, field: str, filename: str, data: bytes) -> str:
+    def _upload(
+        self, call: _Call, widget_url: str, field: str, filename: str, data: bytes, version: int | None = None
+    ) -> str:
         """Asks for an upload, sends the file to storage and answers the upload's id."""
-        grant = self._grant(call, widget_url, field, filename, len(data))
+        grant = self._grant(call, widget_url, field, filename, len(data), version)
+        self._store(call, grant.upload.url, grant.upload.fields, field, filename, data)
+        return grant.id
+
+    def _store(self, call: _Call, url: str, fields: dict[str, str], param: str, filename: str, data: bytes) -> None:
+        """Sends a file to storage with an S3 POST form: every entry of ``fields``, then the file."""
         stored: httpx.Response | httpx.TransportError
         try:
-            stored = self._http.post(
-                grant.upload.url,
-                data=grant.upload.fields,
-                files={"file": (filename, data)},
-                timeout=self._timeouts(call),
-            )
+            stored = self._http.post(url, data=fields, files={"file": (filename, data)}, timeout=self._timeouts(call))
         except httpx.TransportError as error:
             stored = error
-        self._stored(call, field, filename, stored)
-        return grant.id
+        self._stored(call, param, filename, stored)
 
     def _download(self, url: str, range_header: str | None) -> tuple[int, Callable[[], bytes]]:
         """Opens an output file in storage, without the API key, with a ``Range`` header or

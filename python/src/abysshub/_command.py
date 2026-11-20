@@ -1,0 +1,293 @@
+"""The ``abysshub`` command. ``abysshub publish <folder>`` does what a person does on the
+website's Publish page, through `/v1`'s routes that change a Widget. It asks nothing at a
+prompt: it stops or it goes, and every stop exits non-zero with its ``code``."""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from fnmatch import fnmatchcase
+from pathlib import Path
+from typing import Any
+
+from ._client import Abyss, _expect, _has_ended, _is_upload, _is_widget
+from ._error import AbyssError
+from ._files import file
+from ._types import parse_upload
+
+PUBLISH_FILE = "abyss.json"
+TEST_INPUTS = "test_inputs.json"
+INTERFACE = "interface.json"
+ROOT_ENV = (".env", ".env.*")
+"""A root ``.env`` and its variants: never content, whatever the Junk list says."""
+LISTING_FIELDS = ("title", "description", "tags", "visibility", "price", "free_runs")
+"""The Listing Fields the Publish File holds, beside its thumbnail."""
+JSON = {"Content-Type": "application/json"}
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Runs the command and answers its exit code."""
+    parser = argparse.ArgumentParser(prog="abysshub", description="Publish a Widget folder to Abyss.")
+    verbs = parser.add_subparsers(dest="verb", metavar="<verb>")
+    verbs.required = True
+    publish_verb = verbs.add_parser(
+        "publish",
+        help="publish a Widget folder and print its link",
+        description=f"Publish a Widget folder, with its {PUBLISH_FILE} and {TEST_INPUTS}, and print its link.",
+    )
+    publish_verb.add_argument("folder", type=Path)
+    args = parser.parse_args(argv)
+    try:
+        with Abyss() as abyss:
+            print(publish(abyss, args.folder))
+    except AbyssError as error:
+        print(f"abysshub: stopped: {error.code}: {error.message}", file=sys.stderr)
+        if error.request_id:
+            print(f"request_id: {error.request_id}", file=sys.stderr)
+        return 1
+    except OSError as error:
+        # A file the folder names, such as the thumbnail or a Test Input, is missing or unreadable.
+        print(f"abysshub: stopped: file_unreadable: {error}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def publish(abyss: Abyss, folder: Path) -> str:
+    """Publishes a folder that was never published, and answers the Widget's link.
+
+    A Draft's id goes into the Publish File as soon as it is made, and its Candidate's
+    number once committed, so a publish that stops is taken up again on the same Draft.
+    """
+    publish_file = _read_json(folder / PUBLISH_FILE, "publish_file_invalid")
+    if not isinstance(publish_file, dict):
+        raise AbyssError("publish_file_invalid", f"{PUBLISH_FILE} is not a JSON object.")
+    test_inputs = _read_json(folder / TEST_INPUTS, "test_inputs_invalid") if (folder / TEST_INPUTS).is_file() else {}
+    if not isinstance(test_inputs, dict):
+        raise AbyssError("test_inputs_invalid", f"{TEST_INPUTS} is not a JSON object.")
+    interface = _read_json(folder / INTERFACE, "interface_invalid") if (folder / INTERFACE).is_file() else None
+    block = publish_file.get("widget") or {}
+    if not isinstance(block, dict):
+        raise AbyssError("publish_file_invalid", f"The widget block of {PUBLISH_FILE} is not a JSON object.")
+    if "version" in block:
+        raise AbyssError(
+            "widget_published",
+            f"This folder is {block.get('id')}, published already; this abysshub publishes a new Widget only.",
+        )
+
+    widget = block.get("id")
+    if widget is None:
+        draft = _expect(
+            abyss._send(abyss._start(None), "POST", f"{abyss.base_url}/v1/widgets", retries=0),
+            _is_widget,
+            "The Draft answered without an id.",
+        )
+        widget = draft["id"]
+        _write_block(folder, publish_file, {"id": widget})
+        print(f"Made the Draft {widget}.")
+    else:
+        print(f"Publishing the Draft {widget}.")
+    widget_url = abyss._widget_url(widget)
+
+    base = json.dumps({"base_version": block.get("candidate")}).encode()
+    opened = _expect(
+        abyss._send(abyss._start(None), "POST", f"{widget_url}/versions", JSON, base),
+        _is_project_version,
+        "The version answered without its number, form and Junk list.",
+    )
+    sent, left_out = _folder_files(folder, opened["junk"], publish_file.get("thumbnail"))
+    for path in left_out:
+        print(f"Left out {path}")
+    upload = opened["upload"]
+    for path in sent:
+        fields = {**upload["fields"], "key": f"{upload['prefix']}/{path}"}
+        data = (folder / path).read_bytes()
+        abyss._store(abyss._start(None), upload["url"], fields, path, Path(path).name, data)
+    print(f"Sent {len(sent)} files.")
+
+    version = opened["version"]
+    commit = json.dumps({} if interface is None else {"interface": interface}).encode()
+    candidate = _expect(
+        abyss._send(abyss._start(None), "POST", f"{widget_url}/versions/{version}/commit", JSON, commit),
+        _is_candidate,
+        "The commit answered without a Candidate.",
+    )
+    _write_block(folder, publish_file, {"id": widget, "candidate": candidate["version"]})
+
+    print(f"Test Run of version {candidate['version']}...")
+    run = _test_run(abyss, folder, widget, candidate["version"], test_inputs, interface)
+    if run["status"] == "failed":
+        _print_logs(run.get("logs"))
+        error = run.get("error") or {}
+        raise AbyssError(
+            error.get("code", "platform_fault"),
+            f"The Test Run {run['id']} failed, so nothing was published. {error.get('message', '')}".rstrip(),
+            run_id=run["id"],
+        )
+
+    listing = _save_listing(abyss, folder, widget, publish_file)
+    published = _expect(
+        abyss._send(abyss._start(None), "POST", f"{widget_url}/publish"),
+        _is_widget,
+        "The publish answered without the Widget.",
+    )
+    _write_block(
+        folder,
+        publish_file,
+        {"id": widget, "version": candidate["version"], "listing_revision": listing["listing_revision"]},
+    )
+    return str(published["url"])
+
+
+def _folder_files(folder: Path, junk: dict[str, Any], thumbnail: str | None) -> tuple[list[str], list[str]]:
+    """The folder's files to send, and what it leaves out, by their paths in the folder:
+    what the Junk list names, the Publish File, its thumbnail, and a root ``.env`` with its
+    variants. A folder that is left out is named once, with a ``/``."""
+    names = junk.get("names") or []
+    markers = junk.get("markers") or []
+    root_names = [*(junk.get("root") or []), *ROOT_ENV]
+    skipped = {PUBLISH_FILE}
+    if thumbnail:
+        skipped.add(Path(thumbnail).as_posix())
+    sent: list[str] = []
+    left_out: list[str] = []
+    for top, dirs, files in os.walk(folder):
+        here = Path(top)
+        at_root = here == folder
+        kept_dirs = []
+        for name in sorted(dirs):
+            path = here / name
+            if any(fnmatchcase(name, pattern) for pattern in names) or _holds_marker(path, markers):
+                left_out.append(f"{path.relative_to(folder).as_posix()}/")
+            else:
+                kept_dirs.append(name)
+        dirs[:] = kept_dirs
+        for name in sorted(files):
+            relative = (here / name).relative_to(folder).as_posix()
+            if (
+                any(fnmatchcase(name, pattern) for pattern in names)
+                or (at_root and any(fnmatchcase(name, pattern) for pattern in root_names))
+                or relative in skipped
+            ):
+                left_out.append(relative)
+            else:
+                sent.append(relative)
+    return sent, left_out
+
+
+def _test_run(
+    abyss: Abyss,
+    folder: Path,
+    widget: str,
+    version: int,
+    test_inputs: dict[str, Any],
+    interface: list[Any] | None,
+) -> dict[str, Any]:
+    """Makes the Test Run of the Candidate from the Test Inputs and waits for its ending,
+    as ``run()`` waits. A file Field's value is a path in the folder, uploaded for that
+    Candidate. Answers the run, failed or not."""
+    file_fields = {
+        field.get("name") for field in interface or [] if isinstance(field, dict) and field.get("type") == "file"
+    }
+
+    def value(name: str, item: Any) -> Any:
+        if name not in file_fields:
+            return item
+        if isinstance(item, list):
+            return [file(str(folder / path)) if isinstance(path, str) else path for path in item]
+        return file(str(folder / item)) if isinstance(item, str) else item
+
+    input = {name: value(name, item) for name, item in test_inputs.items()}
+    call = abyss._start(None)
+    press = abyss._press(call, widget, input, None, None, hold=True, version=version)
+    reply = press if _has_ended(press) else abyss._hold(call, abyss._wait_url(press), _has_ended)
+    assert reply.run is not None
+    return reply.run
+
+
+def _save_listing(abyss: Abyss, folder: Path, widget: str, publish_file: dict[str, Any]) -> dict[str, Any]:
+    """Saves the Publish File's Listing Fields, ``private`` unless it says, and sends the
+    thumbnail it names first. Answers the listing as saved."""
+    widget_url = abyss._widget_url(widget)
+    save = {name: publish_file[name] for name in LISTING_FIELDS if name in publish_file}
+    save.setdefault("visibility", "private")
+    thumbnail = publish_file.get("thumbnail")
+    if thumbnail:
+        path = folder / thumbnail
+        data = path.read_bytes()
+        call = abyss._start(None)
+        body = json.dumps({"filename": path.name, "size": len(data)}).encode()
+        grant = parse_upload(
+            _expect(
+                abyss._send(call, "POST", f"{widget_url}/listing/thumbnail", JSON, body),
+                _is_upload,
+                "The thumbnail answered without an id and a form.",
+            )
+        )
+        abyss._store(call, grant.upload.url, grant.upload.fields, "thumbnail", path.name, data)
+        save["thumbnail"] = grant.id
+    return _expect(
+        abyss._send(abyss._start(None), "PATCH", f"{widget_url}/listing", JSON, json.dumps(save).encode()),
+        _is_listing,
+        "The listing answered without its revision.",
+    )
+
+
+def _read_json(path: Path, code: str) -> Any:
+    try:
+        return json.loads(path.read_text("utf-8"))
+    except FileNotFoundError:
+        raise AbyssError(code, f"{path} is missing.") from None
+    except ValueError as error:
+        raise AbyssError(code, f"{path} is not valid JSON: {error}") from None
+
+
+def _write_block(folder: Path, publish_file: dict[str, Any], block: dict[str, Any]) -> None:
+    """Writes the ``widget`` block into the Publish File: which Widget the folder is."""
+    publish_file["widget"] = block
+    (folder / PUBLISH_FILE).write_text(json.dumps(publish_file, indent=2, ensure_ascii=False) + "\n", "utf-8")
+
+
+def _holds_marker(path: Path, markers: list[str]) -> bool:
+    """Whether a folder holds a marker of a virtual environment: a file, or a folder when it ends in ``/``."""
+    for marker in markers:
+        if marker.endswith("/") and (path / marker.rstrip("/")).is_dir():
+            return True
+        if not marker.endswith("/") and (path / marker).is_file():
+            return True
+    return False
+
+
+def _print_logs(logs: Any) -> None:
+    """Prints a Test Run's logs, which may be any JSON value."""
+    print("The Test Run's logs:", file=sys.stderr)
+    if logs is None:
+        print("(none)", file=sys.stderr)
+    elif isinstance(logs, str):
+        print(logs, file=sys.stderr)
+    elif isinstance(logs, list):
+        for line in logs:
+            print(line if isinstance(line, str) else json.dumps(line, ensure_ascii=False), file=sys.stderr)
+    else:
+        print(json.dumps(logs, indent=2, ensure_ascii=False), file=sys.stderr)
+
+
+def _is_project_version(value: Any) -> bool:
+    if not isinstance(value, dict) or not isinstance(value.get("version"), int):
+        return False
+    upload = value.get("upload")
+    return (
+        isinstance(upload, dict)
+        and isinstance(upload.get("url"), str)
+        and isinstance(upload.get("fields"), dict)
+        and isinstance(upload.get("prefix"), str)
+        and isinstance(value.get("junk"), dict)
+    )
+
+
+def _is_candidate(value: Any) -> bool:
+    return isinstance(value, dict) and isinstance(value.get("version"), int)
+
+
+def _is_listing(value: Any) -> bool:
+    return isinstance(value, dict) and isinstance(value.get("listing_revision"), str)

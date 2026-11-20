@@ -1,6 +1,7 @@
 """What a recorded call's caller holds: its files on disk, and its input as a caller writes it."""
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -25,12 +26,14 @@ def caller_input(input: dict[str, Any], dir: Path, files: dict[str, str]) -> dic
 
 
 @contextmanager
-def with_files(files: dict[str, str]) -> Iterator[Path]:
-    """A folder holding the caller's files, removed afterwards."""
+def with_files(files: dict[str, Any]) -> Iterator[Path]:
+    """A folder holding the caller's files, removed afterwards. A file's path may name
+    sub-folders, and a content that is not text is written as JSON."""
     with TemporaryDirectory(prefix="abysshub-") as name:
         dir = Path(name)
         for path, content in files.items():
-            (dir / path).write_bytes(content.encode())
+            (dir / path).parent.mkdir(parents=True, exist_ok=True)
+            (dir / path).write_bytes((content if isinstance(content, str) else json.dumps(content)).encode())
         yield dir
 
 

@@ -1,0 +1,263 @@
+{
+  "description": "abysshub publish whose Test Run fails: it prints the run's logs and the run's code, publishes nothing and exits non-zero. The Draft's id and its Candidate are already in the Publish File.",
+  "call": {
+    "command": [
+      "publish"
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "Word Counter",
+        "tags": [
+          "text"
+        ],
+        "description": "Counts the words in a text.",
+        "thumbnail": "cover.png"
+      },
+      "test_inputs.json": {
+        "text": "one two three"
+      },
+      "interface.json": [
+        {
+          "type": "text-field",
+          "name": "text",
+          "label": "Text",
+          "isRequired": true
+        }
+      ],
+      "run.py": "import os\nprint(len(os.environ['TEXT'].split()))\n",
+      "requirements.txt": "",
+      "cover.png": "PNG a cover"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Request-Id": "req_O2p2E3n4V5e6R7s8I9o0N1b2"
+        },
+        "body": {
+          "id": "widget_1662",
+          "visibility": "private"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/versions",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "base_version": null
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Request-Id": "req_C2o2M3m4I5t6V7e8R9s0I1o3"
+        },
+        "body": {
+          "version": 1,
+          "base_version": null,
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "widgets/1a2b/v1/${filename}",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+              "X-Amz-Signature": "fake-signature-a2bv1"
+            },
+            "prefix": "widgets/1a2b/v1",
+            "max_bytes": 524288000,
+            "expires_at": "2026-11-20T10:15:00Z"
+          },
+          "junk": {
+            "names": [
+              ".git",
+              "node_modules",
+              "__pycache__",
+              ".venv",
+              "*.egg-info"
+            ],
+            "markers": [
+              "pyvenv.cfg",
+              "conda-meta/"
+            ],
+            "root": [
+              ".env",
+              ".env.*"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v1/interface.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv1",
+          "file": "[{\"type\": \"text-field\", \"name\": \"text\", \"label\": \"Text\", \"isRequired\": true}]"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v1/requirements.txt",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv1",
+          "file": ""
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v1/run.py",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv1",
+          "file": "import os\nprint(len(os.environ['TEXT'].split()))\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v1/test_inputs.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv1",
+          "file": "{\"text\": \"one two three\"}"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/versions/1/commit",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "interface": [
+            {
+              "type": "text-field",
+              "name": "text",
+              "label": "Text",
+              "isRequired": true
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_T2e2S3t4R5u6N7p8R9e0S1s3"
+        },
+        "body": {
+          "widget": "widget_1662",
+          "version": 1,
+          "dropped": []
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "text": "one two three"
+          },
+          "version": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_D2r2A3f4T5m6A7k8E9s0W1i3",
+          "Location": "{base}/v1/runs/run_F4i1L2e3D5r6U7n8A9b0C1d2"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_F4i1L2e3D5r6U7n8A9b0C1d2",
+          "widget": "widget_1662",
+          "status": "failed",
+          "price": 0,
+          "result": null,
+          "output_files": [],
+          "files": "ready",
+          "error": {
+            "code": "widget_fault",
+            "message": "The Widget's code raised an error."
+          },
+          "created_at": "2026-11-20T09:15:02Z",
+          "started_at": "2026-11-20T09:15:04Z",
+          "ended_at": "2026-11-20T09:15:31Z",
+          "logs": [
+            "Traceback (most recent call last):",
+            "KeyError: 'TEXT'"
+          ]
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "exit": 1,
+    "printed": [
+      "KeyError: 'TEXT'",
+      "widget_fault"
+    ],
+    "written": {
+      "abyss.json": {
+        "widget": {
+          "id": "widget_1662",
+          "candidate": 1
+        }
+      }
+    }
+  }
+}

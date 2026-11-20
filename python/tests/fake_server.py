@@ -60,7 +60,7 @@ class Replay:
                     # The caller stopped listening, as a timeout does during a hold.
                     self.close_connection = True
 
-            do_POST = do_PATCH = do_GET
+            do_POST = do_PATCH = do_PUT = do_GET
 
         self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         self._server.daemon_threads = True

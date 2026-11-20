@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from ._client import Abyss, _expect, _has_ended, _is_key, _is_upload, _is_widget
+from ._env import parse_env
 from ._error import AbyssError
 from ._files import file
 from ._run import _downloaded
@@ -32,6 +33,17 @@ IMAGES = (".png", ".jpg", ".jpeg", ".webp", ".gif")
 JSON = {"Content-Type": "application/json"}
 SOURCES = {"widget": "the Widget", "account": "your account"}
 """Where an Environment name comes from, in words."""
+OUTCOMES = {
+    "added": "added",
+    "added_over_account": "saved over the account's: your account holds another value, and this Widget's wins in its runs",
+    "skipped": "skipped: your account holds the same value, and the Widget uses the account's",
+    "kept": "kept: the Widget holds another value, which stays (--use-env-file puts the file's in its place)",
+    "replaced": "replaced: the file's value took the place of the Widget's",
+    "unchanged": "unchanged: the Widget holds the same value",
+    "refused": "refused",
+}
+"""What became of each name of a root ``.env``, in words."""
+ABYSS_KEY_PREFIX = "abyss_sk_"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,6 +59,11 @@ def main(argv: list[str] | None = None) -> int:
     publish_verb.add_argument("folder", type=Path)
     publish_verb.add_argument(
         "--force", action="store_true", help="publish over a Widget that moved on Abyss: the folder wins"
+    )
+    publish_verb.add_argument(
+        "--use-env-file",
+        action="store_true",
+        help="replace the values the Widget already holds with the root .env's",
     )
     status_verb = verbs.add_parser(
         "status",
@@ -82,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
                 faults.extend(_key_faults(abyss))
                 if faults:
                     return _stop(faults)
-                print(publish(abyss, args.folder, widget_folder, args.force))
+                print(publish(abyss, args.folder, widget_folder, args.force, args.use_env_file))
             elif args.verb == "status":
                 status(abyss, args.folder, publish_file)
             else:
@@ -107,6 +124,8 @@ class _Folder:
     interface: list[Any] | None
     test_input: dict[str, Any]
     """The Test Run's input: the Test Inputs, and the default of each Field they leave out."""
+    environment: dict[str, str] | None
+    """The names and values of the root ``.env``, or None without one."""
 
 
 def _stop(faults: list[tuple[str, str]]) -> int:
@@ -133,7 +152,13 @@ def _read_folder(folder: Path) -> tuple[_Folder, list[tuple[str, str]]]:
     # An invalid interface.json skips the Field checks rather than calling every Test Input unknown.
     if test_inputs is not None and (interface is not None or not has_interface):
         test_input = _check_test_inputs(folder, interface or [], test_inputs, faults)
-    return _Folder(publish_file or {}, interface, test_input), faults
+    environment = None
+    if (folder / ".env").is_file():
+        try:
+            environment = parse_env((folder / ".env").read_text("utf-8"))
+        except (OSError, ValueError) as error:
+            faults.append(("env_invalid", f"The root .env cannot be read: {error}"))
+    return _Folder(publish_file or {}, interface, test_input, environment), faults
 
 
 def _read_publish_file(folder: Path) -> tuple[dict[str, Any], list[tuple[str, str]]]:
@@ -221,14 +246,17 @@ def _inside(folder: Path, path: str) -> bool:
     return bool(path) and folder.resolve() in (folder / path).resolve().parents
 
 
-def publish(abyss: Abyss, folder: Path, widget_folder: _Folder, force: bool = False) -> str:
+def publish(
+    abyss: Abyss, folder: Path, widget_folder: _Folder, force: bool = False, use_env_file: bool = False
+) -> str:
     """Publishes a folder, and answers the Widget's link: a new Widget for a folder that was
     never published, a new version of the same Widget for one that was.
 
     A Draft's id goes into the Publish File as soon as it is made, and its Candidate's
     number once committed, so a publish that stops is taken up again on the same Draft.
     A published Widget is first compared with the folder, and a Widget that moved on
-    Abyss stops the publish before any upload, unless ``force``.
+    Abyss stops the publish before any upload, unless ``force``. A root ``.env`` goes to
+    the Widget's own environment before the Test Run, so the Test Run has it.
     """
     publish_file = widget_folder.publish_file
     interface = widget_folder.interface
@@ -282,6 +310,8 @@ def publish(abyss: Abyss, folder: Path, widget_folder: _Folder, force: bool = Fa
     )
     block["candidate"] = candidate["version"]
     _write_block(folder, publish_file, block)
+    if widget_folder.environment is not None:
+        _send_environment(abyss, widget, widget_folder.environment, use_env_file)
 
     print(f"Test Run of version {candidate['version']}...")
     run = _test_run(abyss, folder, widget, candidate["version"], widget_folder.test_input, interface)
@@ -512,6 +542,29 @@ def _folder_files(folder: Path, junk: dict[str, Any], thumbnail: str | None) -> 
             else:
                 sent.append(relative)
     return sent, left_out
+
+
+def _send_environment(abyss: Abyss, widget: str, environment: dict[str, str], use_file_values: bool) -> None:
+    """Sends the root ``.env`` to the Widget's own environment and prints what became of
+    each name, never a value. A value that is an Abyss key is never sent: it is named."""
+    variables = {name: value for name, value in environment.items() if not value.startswith(ABYSS_KEY_PREFIX)}
+    print("Environment from .env:")
+    for name in environment:
+        if name not in variables:
+            print(f"  {name}: left out: its value is an Abyss key, which never goes to a Widget")
+    if variables:
+        body = json.dumps({"variables": variables, "use_file_values": use_file_values}).encode()
+        saved = _expect(
+            abyss._send(abyss._start(None), "PUT", f"{abyss._widget_url(widget)}/environment", JSON, body),
+            _is_environment,
+            "The environment answered without its names.",
+        )
+        for name, entry in saved["names"].items():
+            outcome = entry.get("outcome")
+            code = f": {entry['code']}" if entry.get("code") else ""
+            print(f"  {name}: {OUTCOMES.get(outcome, outcome)}{code}")
+    elif not environment:
+        print("  no names")
 
 
 def _test_run(

@@ -1,5 +1,5 @@
 {
-  "description": "abysshub publish on a folder that was never published: it reads the key, makes a Draft and writes its id into the Publish File, opens a version, sends every file but the Junk list's, the Publish File, its thumbnail and a root .env with its variants, commits with interface.json, makes the Test Run from the Test Inputs (a file Field's path uploaded for that version, and a Field they leave out at its default), saves the Listing Fields (private, as the Publish File does not say) with the thumbnail, publishes, writes the widget block and prints the link.",
+  "description": "abysshub publish on a folder that was never published: it reads the key, makes a Draft and writes its id into the Publish File, opens a version, sends every file but the Junk list's, the Publish File, its thumbnail and a root .env with its variants, commits with interface.json, sends the root .env's names and values to the Widget's own environment (but the one whose value is an Abyss key, which it names as left out) and prints each name's outcome, makes the Test Run from the Test Inputs (a file Field's path uploaded for that version, and a Field they leave out at its default), saves the Listing Fields (private, as the Publish File does not say) with the thumbnail, publishes, writes the widget block and prints the link.",
   "call": {
     "command": [
       "publish"
@@ -53,7 +53,7 @@
       "requirements.txt": "pandas==2.2.3\n",
       "samples/sales.csv": "month,sales\nJan,3\nJan,3\n",
       "thumbnail.png": "PNG a thumbnail",
-      ".env": "API_TOKEN=local-only\n",
+      ".env": "API_TOKEN=local-only\nABYSS_API_KEY='abyss_sk_live_4f1c9a' # mine\n",
       ".env.local": "DEBUG=1\n",
       "__pycache__/run.cpython-39.pyc": "compiled",
       ".venv/pyvenv.cfg": "home = /usr/bin\n",
@@ -297,6 +297,35 @@
     },
     {
       "request": {
+        "method": "PUT",
+        "path": "/v1/widgets/widget_1661/environment",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "variables": {
+            "API_TOKEN": "local-only"
+          },
+          "use_file_values": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_E1n2V3s4E5n6T7a8D9d0E1d2"
+        },
+        "body": {
+          "id": "widget_1661",
+          "names": {
+            "API_TOKEN": {
+              "outcome": "added"
+            }
+          }
+        }
+      }
+    },
+    {
+      "request": {
         "method": "POST",
         "path": "/v1/widgets/widget_1661/uploads",
         "headers": {
@@ -519,7 +548,9 @@
       "myenv/",
       "notes.egg-info/",
       "abyss.json",
-      "thumbnail.png"
+      "thumbnail.png",
+      "API_TOKEN: added",
+      "ABYSS_API_KEY: left out"
     ],
     "written": {
       "abyss.json": {

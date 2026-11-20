@@ -8,7 +8,7 @@ Work through the steps in order. Two of them stop for the Creator: the Done List
 
 ```
 <the original>/     the tool as the Creator has it; read it, never change it
-<widget>/           the Widget, the folder the Creator uploads (WIDGET.md)
+<widget>/           the Widget, the folder that goes on Abyss (WIDGET.md)
 port/               everything else, never uploaded
   DONE-LIST.md      what this Port must do, confirmed by the Creator
   cases/<case>/     case.json, its input files, and original/: what the original produced
@@ -17,10 +17,10 @@ port/               everything else, never uploaded
   CHECK.md          each Case's verdict
   .env              ABYSS_API_KEY, for the Abyss step only
   .venv/            the Widget's Python, for the local runs
-  .venv-check/      the abysshub library, for the Abyss step
+  .venv-check/      the abysshub library and its command, for the Abyss step
 ```
 
-`<widget>/` and `port/` sit side by side, so a Case's files, which may be a client's real data, never enter the upload. When the project is under version control, add `port/` and `.env` to its `.gitignore`. `<this skill>` in the commands below is the folder holding SKILL.md.
+`<widget>/` and `port/` sit side by side, so a Case's files, which may be a client's real data, never enter the upload; only the one the Creator picks as the Test Run's input is copied in (ABYSS.md, step 2). When the project is under version control, add `port/` and `.env` to its `.gitignore`. `<this skill>` in the commands below is the folder holding SKILL.md.
 
 ## 1. Fit
 
@@ -117,8 +117,8 @@ Write `port/DONE-LIST.md` for this one tool. Before you write it, look for what 
 
 Then show the Creator the whole text, and in the same message ask:
 
-- whether to put it on Abyss too, or only prepare the Widget folder, offering Abyss first: *"When the Cases pass here, do you want me to put it on Abyss too (you drag the folder once, then press Test Run and Publish), or only prepare the Widget folder?"*;
-- when they want it on Abyss, which Cases may run there (each one's run stays in their account, since the API cannot delete it; propose none yourself, since you cannot tell their real data from test data);
+- whether to put it on Abyss too, or only prepare the Widget folder, offering Abyss first: *"When the Cases pass here, do you want me to put it on Abyss too, privately (I publish it with an API key of yours, or you drag the folder onto the website), or only prepare the Widget folder?"*;
+- when they want it on Abyss, which Cases may run there (each one's run stays in their account, since the API cannot delete it; propose none yourself, since you cannot tell their real data from test data), and which of those is the Test Run's, shown on the Widget's page as its Example Run;
 - which secrets they will supply (step 5).
 
 Wait for them to confirm or correct it. **No Widget code is written before they confirm.**
@@ -189,11 +189,11 @@ Write the verdicts into `port/CHECK.md`: one row per Case, with where it ran, th
 
 When the Creator chose the folder only in step 3, skip this step: make no thumbnail, ask for no API key, and run nothing on Abyss. Write into `CHECK.md` that the Abyss step was not asked for, and hand it over (step 9).
 
-Otherwise the Check runs once more on Abyss, so it covers the build, the runtime and the upload. Follow ABYSS.md: the Creator puts the Widget on Abyss privately and gives you its address and an API key; you run the Cases marked `"abyss": true`:
+Otherwise the Check runs once more on Abyss, so it covers the build, the runtime and the upload. Follow ABYSS.md: the Widget goes on Abyss privately, published by you with `abysshub publish` when the Creator's key manages Widgets (one of the Cases marked `"abyss": true` is its Test Inputs), or by the Creator on the website. Then you run the Cases marked `"abyss": true`:
 
 ```bash
 python3 -m venv port/.venv-check && port/.venv-check/bin/pip install abysshub
-port/.venv-check/bin/python <this skill>/scripts/check_abyss.py <the Widget's address> port/cases/*
+port/.venv-check/bin/python <this skill>/scripts/check_abyss.py <the Widget's id or address> port/cases/*
 ```
 
 It writes `port/runs/abyss/<case>/` the same way, prints the Widget's private link, and prints the ids of the runs it made. Judge those runs as in step 7, and add them to `CHECK.md` as rows of their own. A run made through the API carries no log, so a Case that should fail passes on Abyss when it failed with `widget_fault` and made none of its outputs; its sentence was judged locally. When `check_abyss.py` says the Abyss step isn't available yet, write that into `CHECK.md` and end the Check with the local runs.
@@ -206,8 +206,8 @@ Tell the Creator, in this order:
 
 1. What the Widget does, in one sentence, and its Fields.
 2. The Check: how many Cases passed, failed or were not run, here and on Abyss, with `CHECK.md`'s path. Word the claim as **"it works and makes sense on these Cases"**, never as "identical to", "equivalent to" or "proven".
-3. How others reach it. Only the Creator can open a private Widget by its page, so they share its private link (`check_abyss.py` prints it), which anyone holding it may open and run, or they make it public.
+3. How others reach it. Only the Creator can open a private Widget by its page, so they share its private link (`abysshub publish` and `check_abyss.py` print it), which anyone holding it may open and run, or they make it public.
 4. The ids of the runs made on Abyss. The API cannot delete a run, so they stay in the Creator's account; that is why only Cases they agreed to sent anything there.
-5. What is left to them: who runs it now (where a person ran the original by hand, that person fills the Widget's form; a program calls it through the API, and the Widget page's **API** panel shows the code), what fired the original (the trigger, the schedule) and now calls the Widget, every send the Port handed back instead of making, every pin you changed, and what the Done List kept as the original does it, as candidates for a next version.
+5. What is left to them: who runs it now (where a person ran the original by hand, that person fills the Widget's form; a program calls it through the API, and the Widget page's **API** panel shows the code), what fired the original (the trigger, the schedule) and now calls the Widget, every send the Port handed back instead of making, every pin you changed, and what the Done List kept as the original does it, as candidates for a next version. A next version is made in the same folder and published again the same way (ABYSS.md, step 6).
 
-When the Widget did not go on Abyss (the Creator chose the folder only, or Abyss couldn't be reached), the Check covers this machine only. In place of 3 and 4, hand over the Widget folder's path, and ABYSS.md's upload steps (step 2) for when they put it on Abyss later.
+When the Widget did not go on Abyss (the Creator chose the folder only, or Abyss couldn't be reached), the Check covers this machine only. In place of 3 and 4, hand over the Widget folder's path, and ABYSS.md's upload steps (step 4) for when they put it on Abyss later.

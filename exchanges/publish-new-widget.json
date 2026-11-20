@@ -1,0 +1,485 @@
+{
+  "description": "abysshub publish on a folder that was never published: it makes a Draft and writes its id into the Publish File, opens a version, sends every file but the Junk list's, the Publish File, its thumbnail and a root .env with its variants, commits with interface.json, makes the Test Run from the Test Inputs (a file Field's path uploaded for that version), saves the Listing Fields (private, as the Publish File does not say) with the thumbnail, publishes, writes the widget block and prints the link.",
+  "call": {
+    "command": [
+      "publish"
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "CSV Cleaner",
+        "tags": [
+          "csv",
+          "data"
+        ],
+        "description": "Removes empty rows and repeated rows from a CSV file.",
+        "price": 0,
+        "free_runs": 0,
+        "thumbnail": "thumbnail.png"
+      },
+      "test_inputs.json": {
+        "data": "samples/sales.csv",
+        "note": "Q3"
+      },
+      "interface.json": [
+        {
+          "type": "file",
+          "name": "data",
+          "label": "CSV file",
+          "isRequired": true,
+          "mimes": [
+            "csv"
+          ],
+          "multiple": false
+        },
+        {
+          "type": "text-field",
+          "name": "note",
+          "label": "Note",
+          "isRequired": false
+        }
+      ],
+      "run.py": "import csv\nprint('cleaned')\n",
+      "requirements.txt": "pandas==2.2.3\n",
+      "samples/sales.csv": "month,sales\nJan,3\nJan,3\n",
+      "thumbnail.png": "PNG a thumbnail",
+      ".env": "API_TOKEN=local-only\n",
+      ".env.local": "DEBUG=1\n",
+      "__pycache__/run.cpython-39.pyc": "compiled",
+      ".venv/pyvenv.cfg": "home = /usr/bin\n",
+      "myenv/pyvenv.cfg": "home = /usr/bin\n",
+      "myenv/lib/site.py": "pass\n",
+      "notes.egg-info/PKG-INFO": "Name: notes\n"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Request-Id": "req_U1p2L3o4A5d6T7e8S9t0R1u2"
+        },
+        "body": {
+          "id": "widget_1661",
+          "visibility": "private"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1661/versions",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "base_version": null
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Request-Id": "req_T1e2S3t4R5u6N7p8R9e0S1s2"
+        },
+        "body": {
+          "version": 1,
+          "base_version": null,
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "widgets/0f6c/v1/${filename}",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+              "X-Amz-Signature": "fake-signature-f6cv1"
+            },
+            "prefix": "widgets/0f6c/v1",
+            "max_bytes": 524288000,
+            "expires_at": "2026-11-20T10:15:00Z"
+          },
+          "junk": {
+            "names": [
+              ".git",
+              "node_modules",
+              "__pycache__",
+              ".venv",
+              "*.egg-info"
+            ],
+            "markers": [
+              "pyvenv.cfg",
+              "conda-meta/"
+            ],
+            "root": [
+              ".env",
+              ".env.*"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/0f6c/v1/interface.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-f6cv1",
+          "file": "[{\"type\": \"file\", \"name\": \"data\", \"label\": \"CSV file\", \"isRequired\": true, \"mimes\": [\"csv\"], \"multiple\": false}, {\"type\": \"text-field\", \"name\": \"note\", \"label\": \"Note\", \"isRequired\": false}]"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/0f6c/v1/requirements.txt",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-f6cv1",
+          "file": "pandas==2.2.3\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/0f6c/v1/run.py",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-f6cv1",
+          "file": "import csv\nprint('cleaned')\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/0f6c/v1/test_inputs.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-f6cv1",
+          "file": "{\"data\": \"samples/sales.csv\", \"note\": \"Q3\"}"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/0f6c/v1/samples/sales.csv",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-f6cv1",
+          "file": "month,sales\nJan,3\nJan,3\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1661/versions/1/commit",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "interface": [
+            {
+              "type": "file",
+              "name": "data",
+              "label": "CSV file",
+              "isRequired": true,
+              "mimes": [
+                "csv"
+              ],
+              "multiple": false
+            },
+            {
+              "type": "text-field",
+              "name": "note",
+              "label": "Note",
+              "isRequired": false
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_T1h2U3m4B5n6A7i8L9g0R1a2"
+        },
+        "body": {
+          "widget": "widget_1661",
+          "version": 1,
+          "dropped": []
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1661/uploads",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "field": "data",
+          "filename": "sales.csv",
+          "size": 24,
+          "version": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_L1i2S3t4I5n6G7s8A9v0E1d2"
+        },
+        "body": {
+          "id": "inputs/412/1661/held/7a1c/sales.csv",
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "inputs/412/1661/held/7a1c/sales.csv",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+              "X-Amz-Signature": "fake-signature-uploads"
+            }
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "inputs/412/1661/held/7a1c/sales.csv",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-uploads",
+          "file": "month,sales\nJan,3\nJan,3\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1661/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "data": "inputs/412/1661/held/7a1c/sales.csv",
+            "note": "Q3"
+          },
+          "version": 1
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_P1u2B3l4I5s6H7w8I9d0G1e2",
+          "Location": "{base}/v1/runs/run_T3s7R4u1N8p2Q5w9E6r0Y4u1"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_T3s7R4u1N8p2Q5w9E6r0Y4u1",
+          "widget": "widget_1661",
+          "status": "succeeded",
+          "price": 0,
+          "result": {
+            "rows": 1
+          },
+          "output_files": [],
+          "files": "ready",
+          "error": null,
+          "created_at": "2026-11-20T09:15:02Z",
+          "started_at": "2026-11-20T09:15:04Z",
+          "ended_at": "2026-11-20T09:15:31Z",
+          "logs": [
+            "Cleaned 1 repeated row."
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1661/listing/thumbnail",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "filename": "thumbnail.png",
+          "size": 15
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_D1r2A3f4T5m6A7k8E9s0W1i2"
+        },
+        "body": {
+          "id": "product_run/1661/thumbnail-4c1e0b9d2a7f36e8b5d1/thumbnail.png",
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "product_run/1661/thumbnail-4c1e0b9d2a7f36e8b5d1/thumbnail.png",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+              "X-Amz-Signature": "fake-signature-thumbnail"
+            }
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "product_run/1661/thumbnail-4c1e0b9d2a7f36e8b5d1/thumbnail.png",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-thumbnail",
+          "file": "PNG a thumbnail"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/widgets/widget_1661/listing",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "title": "CSV Cleaner",
+          "description": "Removes empty rows and repeated rows from a CSV file.",
+          "tags": [
+            "csv",
+            "data"
+          ],
+          "price": 0,
+          "free_runs": 0,
+          "visibility": "private",
+          "thumbnail": "product_run/1661/thumbnail-4c1e0b9d2a7f36e8b5d1/thumbnail.png"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_O1p2E3n4V5e6R7s8I9o0N1a2"
+        },
+        "body": {
+          "id": "widget_1661",
+          "title": "CSV Cleaner",
+          "description": "Removes empty rows and repeated rows from a CSV file.",
+          "tags": [
+            "csv",
+            "data"
+          ],
+          "visibility": "private",
+          "price": 0,
+          "free_runs": 0,
+          "thumbnail": "https://abysshub-public.s3.amazonaws.com/widget/thumbnail/Xk3bQ9.png",
+          "listing_revision": "9f2c41d07a6be385",
+          "live_version": null
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1661/publish",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_C1o2M3m4I5t6V7e8R9s0I1o2"
+        },
+        "body": {
+          "id": "widget_1661",
+          "name": "CSV Cleaner",
+          "description": "Removes empty rows and repeated rows from a CSV file.",
+          "url": "https://abysshub.com/w/pK7d2Qx9Lm",
+          "price": 0,
+          "free_runs": null,
+          "input_schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "exit": 0,
+    "printed": [
+      "https://abysshub.com/w/pK7d2Qx9Lm",
+      ".env.local",
+      ".venv/",
+      "__pycache__/",
+      "myenv/",
+      "notes.egg-info/",
+      "abyss.json",
+      "thumbnail.png"
+    ],
+    "written": {
+      "abyss.json": {
+        "title": "CSV Cleaner",
+        "widget": {
+          "id": "widget_1661",
+          "version": 1,
+          "listing_revision": "9f2c41d07a6be385"
+        }
+      }
+    }
+  }
+}

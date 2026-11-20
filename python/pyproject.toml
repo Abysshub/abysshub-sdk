@@ -28,6 +28,9 @@ classifiers = [
     "Typing :: Typed",
 ]
 
+[project.scripts]
+abysshub = "abysshub._command:main"
+
 [project.optional-dependencies]
 dev = ["pytest"]
 

@@ -1,0 +1,358 @@
+{
+  "description": "abysshub publish on a folder whose Publish File already names a Draft and its Candidate, as a stopped publish left it: it makes no new Draft, opens a version on that Candidate and publishes the same Draft.",
+  "call": {
+    "command": [
+      "publish"
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "Word Counter",
+        "tags": [
+          "text"
+        ],
+        "description": "Counts the words in a text.",
+        "thumbnail": "cover.png",
+        "widget": {
+          "id": "widget_1662",
+          "candidate": 1
+        }
+      },
+      "test_inputs.json": {
+        "text": "one two three"
+      },
+      "interface.json": [
+        {
+          "type": "text-field",
+          "name": "text",
+          "label": "Text",
+          "isRequired": true
+        }
+      ],
+      "run.py": "import os\nprint(len(os.environ['text'].split()))\n",
+      "requirements.txt": "",
+      "cover.png": "PNG a cover"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/versions",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "base_version": 1
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Request-Id": "req_T2h2U3m4B5n6A7i8L9g0R1a3"
+        },
+        "body": {
+          "version": 2,
+          "base_version": 1,
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "widgets/1a2b/v2/${filename}",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+              "X-Amz-Signature": "fake-signature-a2bv2"
+            },
+            "prefix": "widgets/1a2b/v2",
+            "max_bytes": 524288000,
+            "expires_at": "2026-11-20T10:15:00Z"
+          },
+          "junk": {
+            "names": [
+              ".git",
+              "node_modules",
+              "__pycache__",
+              ".venv",
+              "*.egg-info"
+            ],
+            "markers": [
+              "pyvenv.cfg",
+              "conda-meta/"
+            ],
+            "root": [
+              ".env",
+              ".env.*"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v2/interface.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv2",
+          "file": "[{\"type\": \"text-field\", \"name\": \"text\", \"label\": \"Text\", \"isRequired\": true}]"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v2/requirements.txt",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv2",
+          "file": ""
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v2/run.py",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv2",
+          "file": "import os\nprint(len(os.environ['text'].split()))\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/1a2b/v2/test_inputs.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-a2bv2",
+          "file": "{\"text\": \"one two three\"}"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/versions/2/commit",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "interface": [
+            {
+              "type": "text-field",
+              "name": "text",
+              "label": "Text",
+              "isRequired": true
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_L2i2S3t4I5n6G7s8A9v0E1d3"
+        },
+        "body": {
+          "widget": "widget_1662",
+          "version": 2,
+          "dropped": []
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/runs",
+        "headers": {
+          "Authorization": "Bearer {key}",
+          "Idempotency-Key": "{uuid}"
+        },
+        "body": {
+          "input": {
+            "text": "one two three"
+          },
+          "version": 2
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_P2u2B3l4I5s6H7w8I9d0G1e3",
+          "Location": "{base}/v1/runs/run_A2g3A4i5N6p7U8b9L0i1S2h3"
+        },
+        "chunks": [
+          " ",
+          " "
+        ],
+        "body": {
+          "id": "run_A2g3A4i5N6p7U8b9L0i1S2h3",
+          "widget": "widget_1662",
+          "status": "succeeded",
+          "price": 0,
+          "result": null,
+          "output_files": [],
+          "files": "ready",
+          "error": null,
+          "created_at": "2026-11-20T09:15:02Z",
+          "started_at": "2026-11-20T09:15:04Z",
+          "ended_at": "2026-11-20T09:15:31Z",
+          "logs": [
+            "3"
+          ]
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/listing/thumbnail",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "filename": "cover.png",
+          "size": 11
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_O3p2E3n4V5e6R7s8I9o0N1c2"
+        },
+        "body": {
+          "id": "product_run/1662/thumbnail-8e2d5c0f7a1b3d9e6c4a/cover.png",
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "product_run/1662/thumbnail-8e2d5c0f7a1b3d9e6c4a/cover.png",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+              "X-Amz-Signature": "fake-signature-thumbnail"
+            }
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "product_run/1662/thumbnail-8e2d5c0f7a1b3d9e6c4a/cover.png",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-thumbnail",
+          "file": "PNG a cover"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "PATCH",
+        "path": "/v1/widgets/widget_1662/listing",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "title": "Word Counter",
+          "description": "Counts the words in a text.",
+          "tags": [
+            "text"
+          ],
+          "visibility": "private",
+          "thumbnail": "product_run/1662/thumbnail-8e2d5c0f7a1b3d9e6c4a/cover.png"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_C3o2M3m4I5t6V7e8R9s0I1o4"
+        },
+        "body": {
+          "id": "widget_1662",
+          "title": "Word Counter",
+          "description": "Counts the words in a text.",
+          "tags": [
+            "text"
+          ],
+          "visibility": "private",
+          "price": 0,
+          "free_runs": 0,
+          "thumbnail": "https://abysshub-public.s3.amazonaws.com/widget/thumbnail/Xk3bQ9.png",
+          "listing_revision": "1b7e09c4d2f5a638",
+          "live_version": null
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1662/publish",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_T3e2S3t4R5u6N7p8R9e0S1s4"
+        },
+        "body": {
+          "id": "widget_1662",
+          "name": "Word Counter",
+          "description": "Counts the words in a text.",
+          "url": "https://abysshub.com/w/Wc8n3Rt5Yb",
+          "price": 0,
+          "free_runs": null,
+          "input_schema": {
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+            "type": "object",
+            "properties": {},
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "exit": 0,
+    "printed": [
+      "https://abysshub.com/w/Wc8n3Rt5Yb"
+    ],
+    "written": {
+      "abyss.json": {
+        "widget": {
+          "id": "widget_1662",
+          "version": 2,
+          "listing_revision": "1b7e09c4d2f5a638"
+        }
+      }
+    }
+  }
+}

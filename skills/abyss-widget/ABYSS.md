@@ -71,10 +71,10 @@ At the root of `<widget>/`, beside `interface.json`:
   ```
 
   `"visibility": "private"` stays unless the Creator asked you to list the Widget; `free_runs` (0 to 10) matters only on a paid one. The command writes a `widget` block into this file as it goes: which Widget the folder is, and what it was at the last publish or pull. Never write or edit that block; keep the file with the folder (and in version control, when the project is under it), since it is how a later publish finds the same Widget.
-- **The Test Inputs**, `test_inputs.json`, hold the Test Run's input from step 2: a JSON object with one value for each Field's name, written as a Case's `input` is (PORT.md, step 2), except that a file Field's value is the path of a file inside `<widget>/`, or a list of paths for a multi-file Field. Copy that file from the Case into `<widget>/test/`, never at the root (WIDGET.md, "How inputs reach `run.py`"). A Field it leaves out takes its `default`.
+- **The Test Inputs**, `test_inputs.json`, hold the Test Run's input from step 2: a JSON object with one value for each Field's name, written as a Case's `input` is (PORT.md, step 2), except that a file Field's value is the path of a file inside `<widget>/` as a plain string, never `{"file": …}`, or a list of paths for a multi-file Field. Copy that file from the Case into `<widget>/test/`, never at the root (WIDGET.md, "How inputs reach `run.py`"). A Field it leaves out takes its `default`.
 
   ```json
-  {"file": "test/customers.csv", "drop_empty": "yes"}
+  {"table": "test/customers.csv", "drop_empty": "yes"}
   ```
 
 The command uploads `test_inputs.json` and the files it names with the rest of the folder, and never uploads the Publish File, the thumbnail it names, or a root `.env`.
@@ -87,20 +87,22 @@ The command uploads `test_inputs.json` and the files it names with the rest of t
 
 It asks nothing: it goes or it stops. Before it sends anything that changes a Widget, it checks the folder and the key and prints every fault at once. Then it makes a Draft, sends the folder (each `Left out …` line is a file it kept back), puts the root `.env`'s variables into Creator Environment (each name with what became of it, never a value), makes the Test Run from the Test Inputs and waits for it, saves the listing, publishes, and prints the Widget's link as its last line: its private link, for a Private Widget. Give the Creator that link. **The Widget is on Abyss.**
 
+An environment name it calls **kept** is one the Widget already holds with another value, which stays. When the Creator says the file's value is the new one (a changed key, usually), publish again with `--use-env-file`.
+
 ### When it stops
 
 It exits non-zero, and each line `abysshub: stopped: <code>: <message>` says why:
 
 - **A fault in the folder** (`title_missing`, `tag_missing`, `thumbnail_missing`, `thumbnail_not_image`, `run_py_missing`, `requirements_missing`, `publish_file_missing`, `publish_file_invalid`, `test_inputs_invalid`, `interface_invalid`, `env_invalid`): fix every one it printed and publish again. Nothing was sent.
-- **A missing value**: `test_input_missing` is a required Field with neither a value in `test_inputs.json` nor a `default`; `test_input_unknown` names no Field of `interface.json`; `test_input_file_missing` names no file inside the folder. Fix `test_inputs.json`. A secret the Widget needs and Creator Environment lacks shows up instead as a failed Test Run: the Creator adds it to `<widget>/.env`.
-- **The key**: `invalid_api_key` is no key, or one Abyss refuses; `manage_widgets_required` is a key without Manage Widgets. The Creator makes one with it (step 1), or publishes on the website (step 4).
+- **A fault in the Test Inputs**: `test_input_missing` is a required Field with neither a value in `test_inputs.json` nor a `default`; `test_input_unknown` names no Field of `interface.json`; `test_input_file_missing` names no file inside the folder. Fix `test_inputs.json`. A secret the Widget needs and Creator Environment lacks shows up instead as a failed Test Run: the Creator adds it to `<widget>/.env`.
+- **The key**: `invalid_api_key` is no key, or one Abyss refuses; `manage_widgets_required` is a key without Manage Widgets. The Creator makes one with it (step 1), or publishes on the website (step 4): move the thumbnail into `port/` first, since the website uploads the whole folder.
 - **The Test Run failed** (`widget_fault`, `platform_fault`, `budget_exceeded`): the run's logs are printed above the stop, and nothing was published. Read them as step 4's Test Run says (a build refused for a vulnerable pin, a pin that does not install, your own code's fault), fix the Widget, run it locally again, and publish again: it takes up the same Draft.
 - **`listing_field_refused`**: Abyss refused a value of the Publish File, which `param` names; fix it and publish again.
 - **`widget_moved`**: someone changed the Widget on the website since this folder's last publish or pull: its listing, its code, or both. Nothing was sent. Run `abysshub status <widget>` (with the key, as above): it changes nothing and shows the live Widget beside the folder. Show the Creator what moved, and ask:
   - a listing changed on the website: `abysshub pull <widget>` takes it into `abyss.json` and the thumbnail, then publish again;
   - code published from the website: only `abysshub publish --force <widget>` replaces it with the folder's. Use `--force` only when the Creator says the folder wins.
-- An environment name **kept**: the Widget already holds another value for it, which stays. When the Creator says the file's value is the new one (a changed key, usually), publish again with `--use-env-file`.
 - `rate_limited`, `server_error` or a dropped connection, after the command's own retries: publish again; it takes up the same Draft.
+- Any other code: its message says what to fix. Fix it and publish again.
 
 ## 4. On the website
 

@@ -192,9 +192,10 @@ def publish(abyss: Abyss, folder: Path, widget_folder: _Folder, force: bool = Fa
     interface = widget_folder.interface
     block = dict(publish_file.get("widget") or {})
     widget = block.get("id")
+    # A Widget published already saves only what differs; a new one saves every Listing Field.
     listing: dict[str, Any] | None = None
-    changes: dict[str, Any] = {}
-    send_thumbnail = False
+    changes = _listing_fields(publish_file)
+    send_thumbnail = bool(publish_file.get("thumbnail"))
     if "version" in block:
         listing, changes, send_thumbnail = _compare(abyss, folder, block, publish_file, force)
         base_version = listing["live_version"]
@@ -251,13 +252,9 @@ def publish(abyss: Abyss, folder: Path, widget_folder: _Folder, force: bool = Fa
             run_id=run["id"],
         )
 
-    if listing is None:
-        thumbnail = publish_file.get("thumbnail")
-        listing = _save_listing(abyss, folder, widget, _listing_fields(publish_file), thumbnail)
-    else:
-        thumbnail = publish_file.get("thumbnail") if send_thumbnail else None
-        if changes or thumbnail:
-            listing = _save_listing(abyss, folder, widget, changes, thumbnail)
+    thumbnail = publish_file.get("thumbnail") if send_thumbnail else None
+    if listing is None or changes or thumbnail:
+        listing = _save_listing(abyss, folder, widget, changes, thumbnail)
     if thumbnail:
         block["thumbnail_sha256"] = _sha256(folder / thumbnail)
     block["listing_revision"] = listing["listing_revision"]

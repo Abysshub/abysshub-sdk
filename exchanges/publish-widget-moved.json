@@ -1,0 +1,115 @@
+{
+  "description": "abysshub publish on a folder published already, whose Widget moved on Abyss since: its title was changed on the website and a new version is live there. It reads the listing, names the title with the folder's value and the website's and the live version, and stops before any upload, leaving the widget block as it was.",
+  "call": {
+    "command": [
+      "publish"
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "Word Counter",
+        "tags": [
+          "text"
+        ],
+        "description": "Counts the words in a text.",
+        "thumbnail": "cover.png",
+        "widget": {
+          "id": "widget_1662",
+          "version": 2,
+          "listing_revision": "1b7e09c4d2f5a638",
+          "thumbnail_sha256": "cf3429c853401a5115bc2425bf42bc7ed1cfb436730eadf57d0657fd3f75587e"
+        }
+      },
+      "test_inputs.json": {
+        "text": "one two three"
+      },
+      "interface.json": [
+        {
+          "type": "text-field",
+          "name": "text",
+          "label": "Text",
+          "isRequired": true
+        }
+      ],
+      "run.py": "import os\nprint(len(os.environ['text'].split()))\n",
+      "requirements.txt": "",
+      "cover.png": "PNG a cover"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/key",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_K1e2Y3m4A5n6A7g8E9a0G1n2"
+        },
+        "body": {
+          "name": "publish from my laptop",
+          "key": "abyss_sk_…7c2e",
+          "user": {
+            "id": 412,
+            "name": "ada"
+          },
+          "spend_cap": 10,
+          "spent_this_month": 0,
+          "manage_widgets": true,
+          "created_at": "2026-11-20T08:00:00Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/widgets/widget_1662/listing",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_M1o2V3e4D5l6I7s8T9i0N1XX"
+        },
+        "body": {
+          "id": "widget_1662",
+          "title": "Word Tally",
+          "description": "Counts the words in a text.",
+          "tags": [
+            "text"
+          ],
+          "visibility": "private",
+          "price": 0,
+          "free_runs": 0,
+          "thumbnail": "https://abysshub-public.s3.amazonaws.com/widget/thumbnail/Xk3bQ9.png",
+          "listing_revision": "7d3f18b0e2c9a645",
+          "live_version": 3
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "exit": 1,
+    "printed": [
+      "widget_moved",
+      "\"Word Tally\"",
+      "\"Word Counter\"",
+      "version 3"
+    ],
+    "written": {
+      "abyss.json": {
+        "widget": {
+          "id": "widget_1662",
+          "version": 2,
+          "listing_revision": "1b7e09c4d2f5a638",
+          "thumbnail_sha256": "cf3429c853401a5115bc2425bf42bc7ed1cfb436730eadf57d0657fd3f75587e"
+        }
+      }
+    }
+  }
+}

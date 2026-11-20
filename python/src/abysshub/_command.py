@@ -4,6 +4,7 @@ prompt: it stops or it goes, and every stop exits non-zero with its ``code``."""
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -40,6 +41,9 @@ def main(argv: list[str] | None = None) -> int:
         description=f"Publish a Widget folder, with its {PUBLISH_FILE} and {TEST_INPUTS}, and print its link.",
     )
     publish_verb.add_argument("folder", type=Path)
+    publish_verb.add_argument(
+        "--force", action="store_true", help="publish over a Widget that moved on Abyss: the folder wins"
+    )
     args = parser.parse_args(argv)
     widget_folder, faults = _read_folder(args.folder)
     try:
@@ -51,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         if faults:
             return _stop(faults)
         try:
-            print(publish(abyss, args.folder, widget_folder))
+            print(publish(abyss, args.folder, widget_folder, args.force))
         except AbyssError as error:
             print(f"abysshub: stopped: {error.code}: {error.message}", file=sys.stderr)
             if error.request_id:
@@ -175,36 +179,42 @@ def _names_file(folder: Path, path: Any) -> bool:
     return target.is_file() and folder.resolve() in target.parents
 
 
-def publish(abyss: Abyss, folder: Path, widget_folder: _Folder) -> str:
-    """Publishes a folder that was never published, and answers the Widget's link.
+def publish(abyss: Abyss, folder: Path, widget_folder: _Folder, force: bool = False) -> str:
+    """Publishes a folder, and answers the Widget's link: a new Widget for a folder that was
+    never published, a new version of the same Widget for one that was.
 
     A Draft's id goes into the Publish File as soon as it is made, and its Candidate's
     number once committed, so a publish that stops is taken up again on the same Draft.
+    A published Widget is first compared with the folder, and a Widget that moved on
+    Abyss stops the publish before any upload, unless ``force``.
     """
     publish_file = widget_folder.publish_file
     interface = widget_folder.interface
-    block = publish_file.get("widget") or {}
-    if "version" in block:
-        raise AbyssError(
-            "widget_published",
-            f"This folder is {block.get('id')}, published already; this abysshub publishes a new Widget only.",
-        )
-
+    block = dict(publish_file.get("widget") or {})
     widget = block.get("id")
-    if widget is None:
+    listing: dict[str, Any] | None = None
+    changes: dict[str, Any] = {}
+    send_thumbnail = False
+    if "version" in block:
+        listing, changes, send_thumbnail = _compare(abyss, folder, block, publish_file, force)
+        base_version = listing["live_version"]
+    elif widget is None:
         draft = _expect(
             abyss._send(abyss._start(None), "POST", f"{abyss.base_url}/v1/widgets", retries=0),
             _is_widget,
             "The Draft answered without an id.",
         )
         widget = draft["id"]
-        _write_block(folder, publish_file, {"id": widget})
+        block["id"] = widget
+        _write_block(folder, publish_file, block)
         print(f"Made the Draft {widget}.")
+        base_version = None
     else:
         print(f"Publishing the Draft {widget}.")
+        base_version = block.get("candidate")
     widget_url = abyss._widget_url(widget)
 
-    base = json.dumps({"base_version": block.get("candidate")}).encode()
+    base = json.dumps({"base_version": base_version}).encode()
     opened = _expect(
         abyss._send(abyss._start(None), "POST", f"{widget_url}/versions", JSON, base),
         _is_project_version,
@@ -227,7 +237,8 @@ def publish(abyss: Abyss, folder: Path, widget_folder: _Folder) -> str:
         _is_candidate,
         "The commit answered without a Candidate.",
     )
-    _write_block(folder, publish_file, {"id": widget, "candidate": candidate["version"]})
+    block["candidate"] = candidate["version"]
+    _write_block(folder, publish_file, block)
 
     print(f"Test Run of version {candidate['version']}...")
     run = _test_run(abyss, folder, widget, candidate["version"], widget_folder.test_input, interface)
@@ -240,18 +251,73 @@ def publish(abyss: Abyss, folder: Path, widget_folder: _Folder) -> str:
             run_id=run["id"],
         )
 
-    listing = _save_listing(abyss, folder, widget, publish_file)
+    if listing is None:
+        thumbnail = publish_file.get("thumbnail")
+        listing = _save_listing(abyss, folder, widget, _listing_fields(publish_file), thumbnail)
+    else:
+        thumbnail = publish_file.get("thumbnail") if send_thumbnail else None
+        if changes or thumbnail:
+            listing = _save_listing(abyss, folder, widget, changes, thumbnail)
+    if thumbnail:
+        block["thumbnail_sha256"] = _sha256(folder / thumbnail)
+    block["listing_revision"] = listing["listing_revision"]
+    _write_block(folder, publish_file, block)
     published = _expect(
         abyss._send(abyss._start(None), "POST", f"{widget_url}/publish"),
         _is_widget,
         "The publish answered without the Widget.",
     )
-    _write_block(
-        folder,
-        publish_file,
-        {"id": widget, "version": candidate["version"], "listing_revision": listing["listing_revision"]},
-    )
+    block.pop("candidate")
+    block["version"] = candidate["version"]
+    _write_block(folder, publish_file, block)
     return str(published["url"])
+
+
+def _compare(
+    abyss: Abyss, folder: Path, block: dict[str, Any], publish_file: dict[str, Any], force: bool
+) -> tuple[dict[str, Any], dict[str, Any], bool]:
+    """Reads the Widget's listing and prints it beside the folder, before any upload. The
+    Widget moved when its listing revision or its live version is not the block's: then
+    the publish stops, unless ``force`` makes the folder win. Answers the listing, the
+    Listing Fields to save, and whether to send the thumbnail."""
+    widget = block["id"]
+    listing = abyss._get(
+        abyss._start(None),
+        f"{abyss._widget_url(widget)}/listing",
+        lambda value: _is_listing(value) and "live_version" in value,
+        "The listing answered without its revision and its live version.",
+    )
+    changes = {name: value for name, value in _listing_fields(publish_file).items() if listing.get(name) != value}
+    listing_moved = listing["listing_revision"] != block.get("listing_revision")
+    code_moved = listing["live_version"] != block.get("version")
+    thumbnail = publish_file.get("thumbnail")
+    send_thumbnail = bool(thumbnail) and (
+        (listing_moved and force) or _sha256(folder / thumbnail) != block.get("thumbnail_sha256")
+    )
+
+    print(f"{widget} on Abyss beside the folder:")
+    for name, value in changes.items():
+        print(f"  {name}: {_shown(listing.get(name))} on Abyss, {_shown(value)} in the folder")
+    if send_thumbnail:
+        print(f"  thumbnail: {thumbnail} in the folder")
+    if listing_moved:
+        print("  listing: changed on Abyss since the folder's last publish or pull")
+    if code_moved:
+        print(f"  code: version {listing['live_version']} is live on Abyss, the folder's is version {block.get('version')}")
+    if not (changes or send_thumbnail or listing_moved or code_moved):
+        print("  nothing differs")
+
+    if (listing_moved or code_moved) and not force:
+        moved = " and ".join(what for what, did in (("its listing", listing_moved), ("its code", code_moved)) if did)
+        pull = "take the website's listing with `abysshub pull`, or " if listing_moved else ""
+        raise AbyssError(
+            "widget_moved",
+            f"{widget} moved on Abyss since this folder's last publish or pull: {moved} changed there. "
+            f"Nothing was sent. To go on, {pull}publish with --force to make the folder win.",
+        )
+    if listing_moved or code_moved:
+        print("--force: the folder wins over what moved on Abyss.")
+    return listing, changes, send_thumbnail
 
 
 def _folder_files(folder: Path, junk: dict[str, Any], thumbnail: str | None) -> tuple[list[str], list[str]]:
@@ -320,13 +386,13 @@ def _test_run(
     return reply.run
 
 
-def _save_listing(abyss: Abyss, folder: Path, widget: str, publish_file: dict[str, Any]) -> dict[str, Any]:
-    """Saves the Publish File's Listing Fields, ``private`` unless it says, and sends the
-    thumbnail it names first. Answers the listing as saved."""
+def _save_listing(
+    abyss: Abyss, folder: Path, widget: str, save: dict[str, Any], thumbnail: str | None
+) -> dict[str, Any]:
+    """Saves these Listing Fields, and sends the thumbnail at that path in the folder
+    first, if any. Answers the listing as saved."""
     widget_url = abyss._widget_url(widget)
-    save = {name: publish_file[name] for name in LISTING_FIELDS if name in publish_file}
-    save.setdefault("visibility", "private")
-    thumbnail = publish_file.get("thumbnail")
+    save = dict(save)
     if thumbnail:
         path = folder / thumbnail
         data = path.read_bytes()
@@ -346,6 +412,23 @@ def _save_listing(abyss: Abyss, folder: Path, widget: str, publish_file: dict[st
         _is_listing,
         "The listing answered without its revision.",
     )
+
+
+def _listing_fields(publish_file: dict[str, Any]) -> dict[str, Any]:
+    """The Listing Fields the Publish File holds, ``private`` unless it says."""
+    fields = {name: publish_file[name] for name in LISTING_FIELDS if name in publish_file}
+    fields.setdefault("visibility", "private")
+    return fields
+
+
+def _sha256(path: Path) -> str:
+    """The SHA-256 of a file, which tells whether the thumbnail changed since it was sent."""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _shown(value: Any) -> str:
+    """A Listing Field's value as JSON, as the Publish File writes it."""
+    return json.dumps(value, ensure_ascii=False)
 
 
 def _read_json(path: Path, kind: str, shape: type, faults: list[tuple[str, str]]) -> Any:

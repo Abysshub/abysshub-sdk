@@ -1,5 +1,5 @@
 {
-  "description": "abysshub publish on a folder that was never published: it makes a Draft and writes its id into the Publish File, opens a version, sends every file but the Junk list's, the Publish File, its thumbnail and a root .env with its variants, commits with interface.json, makes the Test Run from the Test Inputs (a file Field's path uploaded for that version), saves the Listing Fields (private, as the Publish File does not say) with the thumbnail, publishes, writes the widget block and prints the link.",
+  "description": "abysshub publish on a folder that was never published: it reads the key, makes a Draft and writes its id into the Publish File, opens a version, sends every file but the Junk list's, the Publish File, its thumbnail and a root .env with its variants, commits with interface.json, makes the Test Run from the Test Inputs (a file Field's path uploaded for that version, and a Field they leave out at its default), saves the Listing Fields (private, as the Publish File does not say) with the thumbnail, publishes, writes the widget block and prints the link.",
   "call": {
     "command": [
       "publish"
@@ -36,6 +36,17 @@
           "name": "note",
           "label": "Note",
           "isRequired": false
+        },
+        {
+          "type": "select",
+          "name": "repeats",
+          "label": "Repeated rows",
+          "isRequired": true,
+          "options": [
+            "remove",
+            "keep"
+          ],
+          "default": "remove"
         }
       ],
       "run.py": "import csv\nprint('cleaned')\n",
@@ -52,6 +63,33 @@
     }
   },
   "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/key",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_K1e2Y3m4A5n6A7g8E9n0E1w2"
+        },
+        "body": {
+          "name": "publish from my laptop",
+          "key": "abyss_sk_…7c2e",
+          "user": {
+            "id": 412,
+            "name": "ada"
+          },
+          "spend_cap": 10,
+          "spent_this_month": 0,
+          "manage_widgets": true,
+          "created_at": "2026-11-20T08:00:00Z"
+        }
+      }
+    },
     {
       "request": {
         "method": "POST",
@@ -131,7 +169,7 @@
           "key": "widgets/0f6c/v1/interface.json",
           "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
           "X-Amz-Signature": "fake-signature-f6cv1",
-          "file": "[{\"type\": \"file\", \"name\": \"data\", \"label\": \"CSV file\", \"isRequired\": true, \"mimes\": [\"csv\"], \"multiple\": false}, {\"type\": \"text-field\", \"name\": \"note\", \"label\": \"Note\", \"isRequired\": false}]"
+          "file": "[{\"type\": \"file\", \"name\": \"data\", \"label\": \"CSV file\", \"isRequired\": true, \"mimes\": [\"csv\"], \"multiple\": false}, {\"type\": \"text-field\", \"name\": \"note\", \"label\": \"Note\", \"isRequired\": false}, {\"type\": \"select\", \"name\": \"repeats\", \"label\": \"Repeated rows\", \"isRequired\": true, \"options\": [\"remove\", \"keep\"], \"default\": \"remove\"}]"
         }
       },
       "response": {
@@ -230,6 +268,17 @@
               "name": "note",
               "label": "Note",
               "isRequired": false
+            },
+            {
+              "type": "select",
+              "name": "repeats",
+              "label": "Repeated rows",
+              "isRequired": true,
+              "options": [
+                "remove",
+                "keep"
+              ],
+              "default": "remove"
             }
           ]
         }
@@ -305,7 +354,8 @@
         "body": {
           "input": {
             "data": "inputs/412/1661/held/7a1c/sales.csv",
-            "note": "Q3"
+            "note": "Q3",
+            "repeats": "remove"
           },
           "version": 1
         }

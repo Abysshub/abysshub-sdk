@@ -4,7 +4,7 @@
     "title": "AbyssHub API",
     "version": "1",
     "summary": "Run any AbyssHub Widget from your code or your agent.",
-    "description": "Run an AbyssHub Widget from code: press it with an input and get back the ended run, in one call.\n\n## The key\n\nSend an API Key on every request as `Authorization: Bearer abyss_sk_…`. Create one in your Cave. A key acts as you: its runs are paid from your wallet and are private to you. Read it from an environment variable such as `ABYSS_API_KEY`; never write it into code. A key is a server-side secret, so `/v1` sends no CORS headers and no browser can call it.\n\n## One call\n\nEvery Widget, every run length, the same code:\n\n1. `GET /v1/widgets/{id}` tells you the `price` you pay and the `input_schema` your input must match.\n2. Press: `POST /v1/widgets/{id}/runs` with `{\"input\": {…}}`. The press holds until the run ends: `200` and its headers, `Location` among them, come at once, then a space every 2 seconds while the run goes on, then the run once `status` is `succeeded` or `failed`. JSON allows the leading spaces, so any JSON parser reads the answer. The code goes out before the ending is known: read `status`, never the HTTP status, to learn how the run ended.\n\nThe same call serves a 3-second run and a 30-minute run.\n\n## Long runs\n\nA hold can end early with the run as it is, still `queued` or `running`: after an hour, or when the API is busy, when the press answers `202` at once. A deploy can cut a hold too. Then read the run at its `Location` with `GET /v1/runs/{id}?wait=true`, which holds the same way. If you got no headers at all, press again with the same `Idempotency-Key`: the repeat holds too.\n\nTo start a run without waiting, send `\"wait\": false` with the press. It answers `202` at once with the run `queued`; read it with `?wait=true` when you want its ending.\n\n## Files\n\nA file Field takes an `https` URL on a public address, which the API fetches at the press, or the `id` of an upload from `POST /v1/widgets/{id}/uploads`. Or send the file itself in the press, as a form: `curl -F report=@report.pdf -F note=hello`. A finished run lists what it wrote in `output_files`. Each `url` there is signed fresh on every read and expires: re-read the run, never store a URL.\n\n## Errors\n\nA failure is `{\"error\": {\"code\", \"message\", \"param\"?, \"doc_url\", …}, \"request_id\"}`. Branch on `error.code`, never on the status or the `message`: the message is written for a person and may change, the code never does. Every code, its status and what to do about it is listed in `components.schemas.ErrorCode`. Every response carries a `Request-Id` header; quote it to support.\n\n## Retrying safely\n\nSend an `Idempotency-Key` header with a press and you may retry it after a timeout or a dropped connection: a retry with the same key and the same body answers like the first press, with that press's run and `Idempotent-Replayed: true`: it holds, or answers `202` at once with `\"wait\": false`. It never runs or charges twice. Reading a run is always safe to retry. On `429 rate_limited` and `409 idempotency_key_in_use`, wait the `Retry-After` seconds; no other failure sends it.\n\n## Versioning\n\nThe version is the `/v1` path; there is no version header. Within `/v1` fields, codes and optional parameters are only ever added. Nothing is renamed, removed or given a new meaning. Ignore the fields and codes you don't know. A breaking change would be `/v2`, beside `/v1`."
+    "description": "Run an AbyssHub Widget from code: press it with an input and get back the ended run, in one call.\n\n## The key\n\nSend an API Key on every request as `Authorization: Bearer abyss_sk_…`. Create one in your Cave. A key acts as you: its runs are paid from your wallet and are private to you. Read it from an environment variable such as `ABYSS_API_KEY`; never write it into code. A key is a server-side secret, so `/v1` sends no CORS headers and no browser can call it. A key only runs Widgets unless you switched on Manage Widgets when you made it; such a key also makes them, starting with `POST /v1/widgets`, saves their files into a Candidate (`/v1/widgets/{id}/versions`), makes the Test Run of that Candidate (a press with `version`), reads and saves their Listing Fields (`/v1/widgets/{id}/listing`), sends a folder's root `.env` to their Creator Environment (`/v1/widgets/{id}/environment`), and publishes them (`POST /v1/widgets/{id}/publish`).\n\n## One call\n\nEvery Widget, every run length, the same code:\n\n1. `GET /v1/widgets/{id}` tells you the `price` you pay and the `input_schema` your input must match.\n2. Press: `POST /v1/widgets/{id}/runs` with `{\"input\": {…}}`. The press holds until the run ends: `200` and its headers, `Location` among them, come at once, then a space every 2 seconds while the run goes on, then the run once `status` is `succeeded` or `failed`. JSON allows the leading spaces, so any JSON parser reads the answer. The code goes out before the ending is known: read `status`, never the HTTP status, to learn how the run ended.\n\nThe same call serves a 3-second run and a 30-minute run.\n\n## Long runs\n\nA hold can end early with the run as it is, still `queued` or `running`: after an hour, or when the API is busy, when the press answers `202` at once. A deploy can cut a hold too. Then read the run at its `Location` with `GET /v1/runs/{id}?wait=true`, which holds the same way. If you got no headers at all, press again with the same `Idempotency-Key`: the repeat holds too.\n\nTo start a run without waiting, send `\"wait\": false` with the press. It answers `202` at once with the run `queued`; read it with `?wait=true` when you want its ending.\n\n## Files\n\nA file Field takes an `https` URL on a public address, which the API fetches at the press, or the `id` of an upload from `POST /v1/widgets/{id}/uploads`. Or send the file itself in the press, as a form: `curl -F report=@report.pdf -F note=hello`. A finished run lists what it wrote in `output_files`. Each `url` there is signed fresh on every read and expires: re-read the run, never store a URL.\n\n## Errors\n\nA failure is `{\"error\": {\"code\", \"message\", \"param\"?, \"doc_url\", …}, \"request_id\"}`. Branch on `error.code`, never on the status or the `message`: the message is written for a person and may change, the code never does. Every code, its status and what to do about it is listed in `components.schemas.ErrorCode`. Every response carries a `Request-Id` header; quote it to support.\n\n## Retrying safely\n\nSend an `Idempotency-Key` header with a press and you may retry it after a timeout or a dropped connection: a retry with the same key and the same body answers like the first press, with that press's run and `Idempotent-Replayed: true`: it holds, or answers `202` at once with `\"wait\": false`. It never runs or charges twice. Reading a run is always safe to retry. On `429 rate_limited` and `409 idempotency_key_in_use`, wait the `Retry-After` seconds; no other failure sends it.\n\n## Versioning\n\nThe version is the `/v1` path; there is no version header. Within `/v1` fields, codes and optional parameters are only ever added. Nothing is renamed, removed or given a new meaning. Ignore the fields and codes you don't know. A breaking change would be `/v2`, beside `/v1`."
   },
   "externalDocs": {
     "description": "API access: the key, the loop, files and errors.",
@@ -48,6 +48,7 @@
                   },
                   "spend_cap": 50,
                   "spent_this_month": 12.4,
+                  "manage_widgets": false,
                   "created_at": "2026-10-04T09:12:44Z"
                 }
               }
@@ -61,6 +62,46 @@
           },
           "429": {
             "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/widgets": {
+      "post": {
+        "operationId": "createWidget",
+        "summary": "Make a Draft",
+        "description": "Makes a Draft for the key's user: a Widget with no name and nothing live, Private. Its `id` names it in the next steps of a publish. The key needs Manage Widgets, and must run any Widget: a key held to picked Widgets makes no new one. One account makes at most 20 new Widgets through its keys in 24 hours, a number Abyss may change; a new version of a Widget is not counted. The request takes no body.",
+        "responses": {
+          "201": {
+            "description": "The Draft.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                },
+                "example": {
+                  "id": "widget_1661",
+                  "visibility": "private"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/ManageWidgetsRefused"
+          },
+          "429": {
+            "$ref": "#/components/responses/NewWidgetsLimitReached"
           },
           "500": {
             "$ref": "#/components/responses/ServerError"
@@ -148,7 +189,7 @@
       "post": {
         "operationId": "createUpload",
         "summary": "Upload a local file for a file Field",
-        "description": "For a file that is not at a public `https` URL. Name the file Field and the file; the answer is an `id` and an S3 upload form. Send the form as `multipart/form-data` to `upload.url`: every entry of `upload.fields` first, then the file itself as `file`. Then press with the `id` as that Field's value. The id is yours alone, for this Widget, and the upload goes straight to storage, never through this API.",
+        "description": "For a file that is not at a public `https` URL. Name the file Field and the file; the answer is an `id` and an S3 upload form. Send the form as `multipart/form-data` to `upload.url`: every entry of `upload.fields` first, then the file itself as `file`. Then press with the `id` as that Field's value. For a Test Run, send the press's `version` here too: the Field is then one of that Candidate's, and a Draft of yours is found. The id is yours alone, for this Widget, and the upload goes straight to storage, never through this API.",
         "parameters": [
           {
             "$ref": "#/components/parameters/WidgetId"
@@ -200,7 +241,7 @@
             "$ref": "#/components/responses/Unauthorized"
           },
           "403": {
-            "$ref": "#/components/responses/AccountStopped"
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
             "$ref": "#/components/responses/NotFound"
@@ -217,11 +258,609 @@
         }
       }
     },
+    "/v1/widgets/{id}/versions": {
+      "post": {
+        "operationId": "openVersion",
+        "summary": "Open a Project Version of your Widget",
+        "description": "Opens a Project Version on one of your own Widgets, a Draft too, to send a folder's files into. Name the Base Version the files are an edit of: a live Widget's live version, a Draft's Candidate, or `null` for a Draft with none. The answer is the version's number, a storage form for its files and the Junk list. Send each file, one request a file, then commit the version. The key needs Manage Widgets.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnWidgetId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenVersionRequest"
+              },
+              "example": {
+                "base_version": 3
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The open Project Version.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectVersion"
+                },
+                "example": {
+                  "version": 4,
+                  "base_version": 3,
+                  "upload": {
+                    "url": "https://abysshub-uploads.s3.amazonaws.com",
+                    "fields": {
+                      "key": "widgets/0f6c…/v4/${filename}",
+                      "Policy": "eyJleHBpcmF0aW9uIjoi…",
+                      "X-Amz-Signature": "5d1f…"
+                    },
+                    "prefix": "widgets/0f6c…/v4",
+                    "max_bytes": 524288000,
+                    "expires_at": "2026-11-20T10:15:00Z"
+                  },
+                  "junk": {
+                    "names": [
+                      ".git",
+                      "node_modules",
+                      "__pycache__",
+                      ".venv",
+                      "*.egg-info"
+                    ],
+                    "markers": [
+                      "pyvenv.cfg",
+                      "conda-meta/"
+                    ],
+                    "root": [
+                      ".env",
+                      ".env.*"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/ManageWidgetsRefused"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/BaseVersionStale"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableContent"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/widgets/{id}/versions/{version}/commit": {
+      "post": {
+        "operationId": "commitVersion",
+        "summary": "Commit a Project Version into the Candidate",
+        "description": "Makes the Widget's Candidate from the files sent to the version, the paths deleted from its Base Version and the Widget Interface; every other file of the Base Version is kept. Whatever the Junk list names, and a root `.env`, is dropped first, and `dropped` says which. A commit refuses what the website's refuses, each thing with its code in `violations`. Your live Widget keeps running its live version: a Test Run of the Candidate, then a Publish, makes it live. The key needs Manage Widgets.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnWidgetId"
+          },
+          {
+            "$ref": "#/components/parameters/VersionNumber"
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommitRequest"
+              },
+              "example": {
+                "deleted_paths": [
+                  "old.py"
+                ],
+                "interface": [
+                  {
+                    "name": "topic",
+                    "type": "text-field",
+                    "label": "Topic",
+                    "isRequired": true
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The Candidate.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidate"
+                },
+                "example": {
+                  "widget": "widget_1661",
+                  "version": 4,
+                  "dropped": [
+                    ".env",
+                    "__pycache__/run.cpython-312.pyc"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/ManageWidgetsRefused"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/BaseVersionStale"
+          },
+          "422": {
+            "$ref": "#/components/responses/ProjectRefused"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/widgets/{id}/listing": {
+      "get": {
+        "operationId": "getListing",
+        "summary": "A Widget's Listing Fields",
+        "description": "The Listing Fields of a Widget of yours, a Draft included: its title, description, tags, visibility, price, Free Runs and thumbnail. Keep `listing_revision` and `live_version` from this read or from your last save: before your next publish, read again, and another value means the Widget moved on another door since (its listing, or its live version). The key needs Manage Widgets; a key held to picked Widgets reads only those.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnWidgetId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The Listing Fields.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Listing"
+                },
+                "example": {
+                  "id": "widget_1661",
+                  "title": "Chart Maker",
+                  "description": "<p>Turns a CSV into a bar chart.</p>",
+                  "tags": [
+                    "charts",
+                    "csv"
+                  ],
+                  "visibility": "private",
+                  "price": 3,
+                  "free_runs": 2,
+                  "thumbnail": "https://abysshub-public.s3.amazonaws.com/widget/thumbnail/Xk3bQ9.png",
+                  "listing_revision": "9f2c41d07a6be385",
+                  "live_version": 4
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/ManageWidgetsRefused"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "saveListing",
+        "summary": "Save a Widget's Listing Fields",
+        "description": "Saves the Listing Fields you send, under the website's rules for each, and leaves the others as they are. A save needs no Candidate and no Test Run, and it takes effect at once, on a live Widget too. A refused value is `422 listing_field_refused` with `param` naming the field, and then nothing in the save is saved. To set the thumbnail, send the file with a grant from `POST /v1/widgets/{id}/listing/thumbnail` first, then save the grant's `id` as `thumbnail`. The answer is the listing as saved, with its new `listing_revision`.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnWidgetId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListingSave"
+              },
+              "example": {
+                "title": "Chart Maker",
+                "tags": [
+                  "charts",
+                  "csv"
+                ],
+                "visibility": "public",
+                "thumbnail": "product_run/1661/thumbnail-4c1e0b9d2a7f36e8b5d1/thumbnail.png"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The Listing Fields as saved.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Listing"
+                },
+                "example": {
+                  "id": "widget_1661",
+                  "title": "Chart Maker",
+                  "description": "<p>Turns a CSV into a bar chart.</p>",
+                  "tags": [
+                    "charts",
+                    "csv"
+                  ],
+                  "visibility": "private",
+                  "price": 3,
+                  "free_runs": 2,
+                  "thumbnail": "https://abysshub-public.s3.amazonaws.com/widget/thumbnail/Xk3bQ9.png",
+                  "listing_revision": "9f2c41d07a6be385",
+                  "live_version": 4
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/ManageWidgetsRefused"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableContent"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/widgets/{id}/listing/thumbnail": {
+      "post": {
+        "operationId": "createThumbnailUpload",
+        "summary": "Upload a thumbnail",
+        "description": "For a Widget of yours, a Draft included. Name the image file; the answer is an `id` and an S3 upload form. Send the form as `multipart/form-data` to `upload.url`: every entry of `upload.fields` first, then the image itself as `file`. Then save the `id` as `thumbnail` with `PATCH /v1/widgets/{id}/listing`. The file must be an image of 5 MB or less. An upload that no save names is erased after a day. The key needs Manage Widgets.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnWidgetId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThumbnailUploadRequest"
+              },
+              "example": {
+                "filename": "cover.png",
+                "size": 182344
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The upload's id and the form to send the image with.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                },
+                "example": {
+                  "id": "product_run/1661/thumbnail-4c1e0b9d2a7f36e8b5d1/thumbnail.png",
+                  "upload": {
+                    "url": "https://abysshub-uploads.s3.amazonaws.com",
+                    "fields": {
+                      "key": "product_run/1661/thumbnail-4c1e0b9d2a7f36e8b5d1/thumbnail.png",
+                      "Policy": "eyJleHBpcmF0aW9uIjoi…",
+                      "X-Amz-Signature": "5d1f…"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/ManageWidgetsRefused"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableContent"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/widgets/{id}/environment": {
+      "get": {
+        "operationId": "getEnvironment",
+        "summary": "Where each name of a Widget's Creator Environment comes from",
+        "description": "The names a run of a Widget of yours gets from its Creator Environment, a Draft's included, each with where it comes from: the Widget, or your account. Never a value. The key needs Manage Widgets; a key held to picked Widgets reads only those.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnWidgetId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The names and their sources.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Environment"
+                },
+                "example": {
+                  "id": "widget_1661",
+                  "names": {
+                    "OPENAI_API_KEY": {
+                      "source": "widget"
+                    },
+                    "REGION": {
+                      "source": "account"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/ManageWidgetsRefused"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveEnvironment",
+        "summary": "Send a root .env to a Widget's Creator Environment",
+        "description": "Sends the names and values of your folder's root `.env` to the Widget's own Creator Environment, under the website's rules. A name your account holds with the same value is `skipped`, and the Widget keeps inheriting it. A name your account holds with another value is saved on the Widget, whose value then wins in a run. A name the Widget already holds with another value is `kept`, unless you send `use_file_values: true`. A reserved name, a Field's name and a value that is an Abyss API Key are `refused`, each with a code; a refused name stops only itself, and the others still save. Names you leave out stay as they are. The answer names each outcome and never a value.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnWidgetId"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvironmentSave"
+              },
+              "example": {
+                "variables": {
+                  "OPENAI_API_KEY": "sk-proj-…",
+                  "REGION": "eu",
+                  "BUCKET_NAME": "mine"
+                },
+                "use_file_values": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Each name's outcome.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnvironmentSaved"
+                },
+                "example": {
+                  "id": "widget_1661",
+                  "names": {
+                    "OPENAI_API_KEY": {
+                      "outcome": "added"
+                    },
+                    "REGION": {
+                      "outcome": "skipped"
+                    },
+                    "BUCKET_NAME": {
+                      "outcome": "refused",
+                      "code": "env_name_reserved"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/ManageWidgetsRefused"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/UnprocessableContent"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
+    "/v1/widgets/{id}/publish": {
+      "post": {
+        "operationId": "publishWidget",
+        "summary": "Publish a Widget",
+        "description": "Puts the Candidate of a Widget of yours live, a Draft's included, behind the same Publish Gate as the website: a Draft becomes a live Widget, and a live Widget gets the new version. Nobody reviews it. It takes no body. The gate asks for a Candidate (`POST /v1/widgets/{id}/versions/{version}/commit`) and a succeeded Test Run of it as it stands (a press with `version`), and a Draft also needs a title, a thumbnail and a tag (`PATCH /v1/widgets/{id}/listing`). When it misses any, the answer is `422 publish_refused`, and `violations` names each thing with its code, so repair them all and publish again. The answer is the Widget: its `url` is the link to send, the page's address for a listed Widget and its own Private Link for a Private one. The Test Run that passed becomes the Example Run, and keeps the time of the Publish. The key needs Manage Widgets.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/OwnWidgetId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The Widget, live on the version just published.",
+            "headers": {
+              "Request-Id": {
+                "$ref": "#/components/headers/RequestId"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Widget"
+                },
+                "example": {
+                  "id": "widget_1661",
+                  "name": "Chart Maker",
+                  "description": "Turns a CSV into a bar chart.",
+                  "url": "https://abysshub.com/widgets/1661",
+                  "price": 3.1,
+                  "free_runs": null,
+                  "input_schema": {
+                    "$schema": "https://json-schema.org/draft/2020-12/schema",
+                    "type": "object",
+                    "properties": {
+                      "title": {
+                        "description": "Chart title",
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "data": {
+                        "description": "CSV file\n\nAn https URL or an upload id.",
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "required": [
+                      "title",
+                      "data"
+                    ],
+                    "additionalProperties": false
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/ManageWidgetsRefused"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/PublishRefused"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          },
+          "500": {
+            "$ref": "#/components/responses/ServerError"
+          }
+        }
+      }
+    },
     "/v1/widgets/{id}/runs": {
       "post": {
         "operationId": "createRun",
         "summary": "Press: run a Widget and wait for its ending",
-        "description": "Starts one run and holds until it ends: `200`, `Location` and the other headers at once, then a space every 2 seconds, then the run once `status` is `succeeded` or `failed`. Read `status` to learn how it ended. After an hour the hold answers the run as it is, `running`; read it again at its `Location` with `?wait=true`.\n\nThe body is JSON, or a form (`multipart/form-data`) with one part per Field, so a local file goes in the same call. A form always holds.\n\nWith `\"wait\": false` in a JSON body, or when the API's holds are all taken, the press answers `202` at once with the run `queued`.\n\nThe checks run in this order, and every refusal comes before the charge, so a refused press costs nothing: the key, the Widget, the `Idempotency-Key`, the body and the input, a form's files and the URLs your file Fields name, `max_price`, the key's Spend Cap, your wallet, then that each upload your file Fields name is still there.\n\nThe run costs the Widget's `price` from `GET /v1/widgets/{id}`. A failed run is refunded.",
+        "description": "Starts one run and holds until it ends: `200`, `Location` and the other headers at once, then a space every 2 seconds, then the run once `status` is `succeeded` or `failed`. Read `status` to learn how it ended. After an hour the hold answers the run as it is, `running`; read it again at its `Location` with `?wait=true`.\n\nThe body is JSON, or a form (`multipart/form-data`) with one part per Field, so a local file goes in the same call. A form always holds.\n\nWith `\"wait\": false` in a JSON body, or when the API's holds are all taken, the press answers `202` at once with the run `queued`.\n\nThe checks run in this order, and every refusal comes before the charge, so a refused press costs nothing: the key, the Widget, the `Idempotency-Key`, the body and the input, a form's files and the URLs your file Fields name, `max_price`, the key's Spend Cap, your wallet, then that each upload your file Fields name is still there.\n\nThe run costs the Widget's `price` from `GET /v1/widgets/{id}`. A failed run is refunded.\n\n**A Test Run.** With `version`, a key with Manage Widgets runs that Candidate of a Widget of yours, a Draft's included: the number a commit answered (`POST /v1/widgets/{id}/versions/{version}/commit`). Only you can make it, and it costs nothing. The input is checked against that Candidate's Fields, the `interface` you committed, not the live ones, and a file Field takes an upload id (`POST /v1/widgets/{id}/uploads` with the same `version`) or an `https` URL. It holds like any press. Its run object carries `logs`, so you can show why it failed. Once it succeeds it satisfies the Publish Gate for that Candidate as it stands; a later commit needs a Test Run of its own. A key without Manage Widgets is `403 manage_widgets_required`, another user's Widget `403 run_target_forbidden`, and a version that is no Candidate of the Widget `422 run_target_unavailable`. A `version` that is the live one runs the live version, as a press without it does.",
         "parameters": [
           {
             "$ref": "#/components/parameters/WidgetId"
@@ -618,6 +1257,27 @@
         },
         "example": "widget_1660"
       },
+      "OwnWidgetId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "The id of a Widget of the key's user, `widget_` and its number (as in `widget_1661`), a Draft included. Another user's Widget, or one a key held to picked Widgets was not given, is not found.",
+        "schema": {
+          "type": "string"
+        },
+        "example": "widget_1661"
+      },
+      "VersionNumber": {
+        "name": "version",
+        "in": "path",
+        "required": true,
+        "description": "The Project Version's number, as the open answered it.",
+        "schema": {
+          "type": "string",
+          "pattern": "^[0-9]{1,18}$"
+        },
+        "example": "4"
+      },
       "RunId": {
         "name": "id",
         "in": "path",
@@ -781,7 +1441,7 @@
         }
       },
       "Forbidden": {
-        "description": "`payments_stopped`: your bank disputed a payment, so paid runs are paused until it's settled. Nothing was charged. Ask us to look from your Cave, whose address the message names. Your own Widgets, free ones and Free Runs still run. `account_stopped`: an Admin has stopped your account, so no key of it is accepted until the stop is lifted.",
+        "description": "`payments_stopped`: your bank disputed a payment, so paid runs are paused until it's settled. Nothing was charged. Ask us to look from your Cave, whose address the message names. Your own Widgets, free ones and Free Runs still run. `account_stopped`: an Admin has stopped your account, so no key of it is accepted until the stop is lifted. `manage_widgets_required`: a press or an upload with `version` needs a key with Manage Widgets. `run_target_forbidden`: `version` names a version of another user's Widget.",
         "headers": {
           "Request-Id": {
             "$ref": "#/components/headers/RequestId"
@@ -820,6 +1480,29 @@
                 "code": "account_stopped",
                 "message": "This account is stopped, so none of its API Keys can be used. Nothing was charged. To ask about it, write to support@abysshub.com.",
                 "doc_url": "https://abysshub.com/docs#account_stopped"
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
+      "ManageWidgetsRefused": {
+        "description": "`manage_widgets_required`: the key does not have Manage Widgets, so it only runs Widgets, and changes or reads no Widget's unpublished state. `key_limited_to_widgets`: the key is held to picked Widgets, so it makes no new one. `account_stopped`: an Admin has stopped your account.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "manage_widgets_required",
+                "message": "This API Key does not have Manage Widgets, so it only runs Widgets. Make a new key in your Cave with Manage Widgets switched on; a key cannot be given it afterwards.",
+                "doc_url": "https://abysshub.com/docs#manage_widgets_required"
               },
               "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
             }
@@ -867,8 +1550,32 @@
           }
         }
       },
+      "BaseVersionStale": {
+        "description": "`base_version_stale`: the Widget no longer stands on the Base Version: it was published, or another save replaced its Candidate. Nothing was saved, and waiting will not change it. Open a new Project Version from the version it stands on now.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "base_version_stale",
+                "message": "This Widget changed since the version you edit from: it was published, or another save replaced its Candidate. Nothing was saved. Open a new Project Version from the version the Widget stands on now: its live version, or a Draft's Candidate, or null for a Draft with none.",
+                "param": "base_version",
+                "doc_url": "https://abysshub.com/docs#base_version_stale"
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
       "UnprocessableContent": {
-        "description": "The request can't be taken as sent, and nothing was charged: `invalid_request`, `invalid_input`, `input_unreachable`, `idempotency_key_reused` or a `held_input_*` code. `param` names the part at fault.",
+        "description": "The request can't be taken as sent, and nothing was charged: `invalid_request`, `invalid_input`, `input_unreachable`, `idempotency_key_reused`, a `held_input_*` code, `run_target_unavailable`, `listing_field_refused` or a `thumbnail_*` code. `param` names the part at fault.",
         "headers": {
           "Request-Id": {
             "$ref": "#/components/headers/RequestId"
@@ -891,8 +1598,76 @@
           }
         }
       },
+      "ProjectRefused": {
+        "description": "The commit can't be taken, and nothing was saved. `project_invalid`: the files are not a Widget project, and `violations` names each thing that is wrong; open a new Project Version, fix them all and send the files again. `invalid_interface`: `interface` is not a Widget Interface the website takes; the message says why. `invalid_request`: the body is not one a commit takes.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "project_invalid",
+                "message": "These files are not a Widget project, so nothing was saved: \"violations\" names each thing that is wrong. Fix them all, then open a new Project Version and send the files again.",
+                "doc_url": "https://abysshub.com/docs#project_invalid",
+                "violations": [
+                  {
+                    "code": "missing_file",
+                    "path": "requirements.txt",
+                    "message": "The project is missing the required file [requirements.txt]."
+                  },
+                  {
+                    "code": "extension_refused",
+                    "path": "data/archive.zip",
+                    "message": "The file [data/archive.zip] has a disallowed extension [zip]."
+                  }
+                ]
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
+      "PublishRefused": {
+        "description": "`publish_refused`: the Publish Gate misses something, and nothing moved. `violations` names each thing with its code; repair them all, then publish again.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "publish_refused",
+                "message": "This Widget can't be published yet, so nothing moved: \"violations\" names each thing it is missing. Repair them all, then publish again. A Draft needs a title, a thumbnail and a tag in its Listing Fields, and every publish needs a Candidate with a succeeded Test Run of it as it stands.",
+                "doc_url": "https://abysshub.com/docs#publish_refused",
+                "violations": [
+                  {
+                    "code": "no_thumbnail",
+                    "message": "A published Widget carries a thumbnail."
+                  },
+                  {
+                    "code": "no_test_run",
+                    "message": "No succeeded Test Run of this edit: run version 4 of the project with its current Fields, and publish once that run succeeds."
+                  }
+                ]
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
+            }
+          }
+        }
+      },
       "TooManyRequests": {
-        "description": "`rate_limited`: this key sent too many requests this minute, across all of `/v1`. Wait the `Retry-After` seconds.",
+        "description": "`rate_limited`: this key sent too many requests this minute, across all of `/v1`, or this address sent too many keys that are not live. Wait the `Retry-After` seconds.",
         "headers": {
           "Request-Id": {
             "$ref": "#/components/headers/RequestId"
@@ -905,6 +1680,33 @@
           "application/json": {
             "schema": {
               "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NewWidgetsLimitReached": {
+        "description": "`new_widgets_limit_reached`: your account made the most new Widgets through its keys that 24 hours allow. Make the next one at `retry_at`, which is `Retry-After` seconds away. `rate_limited`: this key sent too many requests this minute, across all of `/v1`, or this address sent too many keys that are not live. Wait the `Retry-After` seconds.",
+        "headers": {
+          "Request-Id": {
+            "$ref": "#/components/headers/RequestId"
+          },
+          "Retry-After": {
+            "$ref": "#/components/headers/RetryAfter"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": {
+                "code": "new_widgets_limit_reached",
+                "message": "Your account made 20 new Widgets through its API Keys in the last 24 hours, the most a day allows. Nothing was made. Make the next one at 2026-11-21T09:00:00Z (UTC), the time in \"retry_at\"; a new version of a Widget you have is not counted, so publish one any time.",
+                "doc_url": "https://abysshub.com/docs#new_widgets_limit_reached",
+                "retry_at": "2026-11-21T09:00:00Z"
+              },
+              "request_id": "req_Q2w9Ex7Rt4Yu1Io8Pa5Sd3Fg"
             }
           }
         }
@@ -945,6 +1747,7 @@
           "user",
           "spend_cap",
           "spent_this_month",
+          "manage_widgets",
           "created_at"
         ],
         "properties": {
@@ -989,6 +1792,10 @@
             "$ref": "#/components/schemas/Byssium",
             "description": "The `price` of this key's runs this calendar month (UTC): what its Spend Cap is held to."
           },
+          "manage_widgets": {
+            "type": "boolean",
+            "description": "Whether the key has Manage Widgets: its user switched it on when they made the key, and it never changes. Without it the key only runs Widgets."
+          },
           "created_at": {
             "$ref": "#/components/schemas/Timestamp"
           }
@@ -1028,7 +1835,7 @@
           "url": {
             "type": "string",
             "format": "uri",
-            "description": "The Widget's page on the website."
+            "description": "The Widget's page on the website: its address for a listed Widget, and its own Private Link for a Private one."
           },
           "price": {
             "$ref": "#/components/schemas/Byssium",
@@ -1063,6 +1870,486 @@
             "$ref": "#/components/schemas/InputSchema"
           }
         }
+      },
+      "Draft": {
+        "type": "object",
+        "description": "A Draft that a key with Manage Widgets made: a Widget of the key's user with no name and nothing live. It is Private. Nobody but its user sees it, and one that nobody finishes is erased after a week untouched.",
+        "required": [
+          "id",
+          "visibility"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^widget_[1-9][0-9]*$",
+            "description": "The Draft's id, which the next steps of a publish name it by."
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "private"
+            ],
+            "description": "A Draft made through a key is Private."
+          }
+        }
+      },
+      "OpenVersionRequest": {
+        "type": "object",
+        "description": "The Base Version: the Project Version the files are an edit of. Nothing else is taken.",
+        "required": [
+          "base_version"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "base_version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "A live Widget's live version, a Draft's Candidate (the `version` its last commit answered), or `null` for a Draft with none. Files you don't send are taken from it."
+          }
+        }
+      },
+      "ProjectVersion": {
+        "type": "object",
+        "description": "A Project Version, open for its files. Send each file with `upload`, one request a file, leaving out what `junk` names; then commit it.",
+        "required": [
+          "version",
+          "base_version",
+          "upload",
+          "junk"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The version's number, which its commit names."
+          },
+          "base_version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "The Base Version it was opened from, as you sent it."
+          },
+          "upload": {
+            "type": "object",
+            "description": "An S3 POST form, spent once per file. Send `multipart/form-data` to `url` with every entry of `fields`, `key` set to `prefix`, a `/` and the file's path in the folder (as in `pkg/util.py`), then the file as `file`. Sub-folders need nothing more. Every file is at most `max_bytes`, and so are all of them together.",
+            "required": [
+              "url",
+              "fields",
+              "prefix",
+              "max_bytes",
+              "expires_at"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "fields": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "prefix": {
+                "type": "string",
+                "description": "The folder every `key` starts with; a key outside it is refused by storage."
+              },
+              "max_bytes": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "The byte budget: what one file and the whole project may weigh."
+              },
+              "expires_at": {
+                "$ref": "#/components/schemas/Timestamp",
+                "description": "When the form stops working. Open a new Project Version after it."
+              }
+            }
+          },
+          "junk": {
+            "$ref": "#/components/schemas/Junk"
+          }
+        }
+      },
+      "Junk": {
+        "type": "object",
+        "description": "What to leave out of the folder. Nothing a Widget can depend on is in it. A commit drops whatever it names, so a file sent anyway does not ship.",
+        "required": [
+          "names",
+          "markers",
+          "root"
+        ],
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A file or folder with one of these names, anywhere in the folder; `*` matches any start (`*.egg-info`)."
+          },
+          "markers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "A folder holding one of these (a file, or a folder when it ends in `/`) is a virtual environment, and is left out whole."
+          },
+          "root": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "At the folder's root only: `.env` and its variants. Not Junk, but never content: their values belong in the Widget's Creator Environment."
+          }
+        }
+      },
+      "CommitRequest": {
+        "type": "object",
+        "description": "What the edit deleted from its Base Version, and the Widget Interface its files go with. Both are optional; nothing else is taken.",
+        "additionalProperties": false,
+        "properties": {
+          "deleted_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Paths of the Base Version that the Candidate leaves out, relative to the folder; a folder deletes everything in it. Each must name something in the Base Version."
+          },
+          "interface": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "The Widget Interface, the list of Fields that `interface.json` holds. Left out, the Base Version's goes with the files."
+          }
+        }
+      },
+      "Candidate": {
+        "type": "object",
+        "description": "The Candidate a commit made: the Widget's one Project Version in waiting, which a Test Run proves and Publish makes live. Its live version, if it has one, is untouched.",
+        "required": [
+          "widget",
+          "version",
+          "dropped"
+        ],
+        "properties": {
+          "widget": {
+            "type": "string",
+            "pattern": "^widget_[1-9][0-9]*$",
+            "description": "The Widget's id."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The Candidate's Project Version number."
+          },
+          "dropped": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Each path sent that the commit left out, because `junk` names it or it is a root `.env`."
+          }
+        }
+      },
+      "Listing": {
+        "type": "object",
+        "description": "A Widget's Listing Fields: what describes it rather than runs it, by the names the Publish File gives them. With the two values that tell you the Widget moved.",
+        "required": [
+          "id",
+          "title",
+          "description",
+          "tags",
+          "visibility",
+          "price",
+          "free_runs",
+          "thumbnail",
+          "listing_revision",
+          "live_version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^widget_[1-9][0-9]*$",
+            "description": "The Widget's id."
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The title; null on a Draft that has none yet."
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The description as the website keeps it, HTML markup included; null when it has none."
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The tags, up to 5."
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "private"
+            ],
+            "description": "`public` is listed in the Catalog once the Widget is live; `private` opens only by its Private Link."
+          },
+          "price": {
+            "$ref": "#/components/schemas/Byssium",
+            "description": "What a run costs a Runner, in whole Byssium; 0 is a free Widget."
+          },
+          "free_runs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10,
+            "description": "How many Free Runs each Runner has on a paid Widget."
+          },
+          "thumbnail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The thumbnail's address; null when it has none."
+          },
+          "listing_revision": {
+            "type": "string",
+            "description": "Changes with every save that changes a Listing Field, on any door, and with nothing else. Compare it, never parse it."
+          },
+          "live_version": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "description": "The number of the live Project Version; null on a Draft, which has nothing live."
+          }
+        }
+      },
+      "ListingSave": {
+        "type": "object",
+        "description": "The Listing Fields to save; each one you leave out stays as it is. Nothing else is taken.",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 96,
+            "description": "3 to 96 characters, no profanity."
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "HTML or plain text, up to 4000 characters of text; null clears it."
+          },
+          "tags": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "description": "1 to 5 tags; they replace the Widget's tags."
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "private"
+            ]
+          },
+          "price": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Whole Byssium a run costs a Runner; 0 is free."
+          },
+          "free_runs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "thumbnail": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The `id` of a thumbnail upload for this Widget (`POST /v1/widgets/{id}/listing/thumbnail`), sent and not yet saved."
+          }
+        }
+      },
+      "Environment": {
+        "type": "object",
+        "description": "Each name a run of the Widget gets from its Creator Environment, and where it comes from. Never a value.",
+        "required": [
+          "id",
+          "names"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^widget_[1-9][0-9]*$",
+            "description": "The Widget's id."
+          },
+          "names": {
+            "type": "object",
+            "description": "By name: `widget` when the Widget holds it, `account` when the run inherits it from your account.",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "source"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "widget",
+                    "account"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "EnvironmentSave": {
+        "type": "object",
+        "description": "The names and values of a folder's root `.env`. Nothing else is taken.",
+        "required": [
+          "variables"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "variables": {
+            "type": "object",
+            "description": "Each name and its value, as the `.env` binds them.",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "use_file_values": {
+            "type": "boolean",
+            "default": false,
+            "description": "Replace a value the Widget already holds with the file's, as the website's \"Use the file's values\" press does. Without it, such a value is `kept`."
+          }
+        }
+      },
+      "EnvironmentSaved": {
+        "type": "object",
+        "description": "What happened to each name you sent, by name. Never a value.",
+        "required": [
+          "id",
+          "names"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^widget_[1-9][0-9]*$",
+            "description": "The Widget's id."
+          },
+          "names": {
+            "type": "object",
+            "description": "By name, its outcome, and a refused name's code.",
+            "additionalProperties": {
+              "type": "object",
+              "required": [
+                "outcome"
+              ],
+              "properties": {
+                "outcome": {
+                  "$ref": "#/components/schemas/EnvironmentOutcome"
+                },
+                "code": {
+                  "$ref": "#/components/schemas/EnvironmentRefusal"
+                }
+              }
+            }
+          }
+        }
+      },
+      "EnvironmentOutcome": {
+        "type": "string",
+        "description": "What became of one name.",
+        "oneOf": [
+          {
+            "const": "added",
+            "description": "Nobody held this name; the Widget holds it now."
+          },
+          {
+            "const": "added_over_account",
+            "description": "Your account holds this name with another value; the Widget holds the file's value now, and the Widget's value wins in a run."
+          },
+          {
+            "const": "skipped",
+            "description": "Your account holds this name with the same value, so nothing was saved: the Widget keeps inheriting the account's value."
+          },
+          {
+            "const": "kept",
+            "description": "The Widget holds this name with another value, which stays. Send `use_file_values: true` to replace it with the file's."
+          },
+          {
+            "const": "replaced",
+            "description": "The Widget held this name with another value, and the file's replaced it, as you sent `use_file_values: true`."
+          },
+          {
+            "const": "unchanged",
+            "description": "The Widget already holds this name with the same value."
+          },
+          {
+            "const": "refused",
+            "description": "This name was not saved; `code` says why. A refused name stops only itself."
+          }
+        ]
+      },
+      "EnvironmentRefusal": {
+        "type": "string",
+        "description": "Why a name was refused. New codes may be added; a name with one you don't know was not saved.",
+        "oneOf": [
+          {
+            "const": "env_name_too_long",
+            "description": "The name is longer than 128 characters."
+          },
+          {
+            "const": "env_name_invalid",
+            "description": "The name is not one an environment variable takes: a letter or `_`, then letters, digits and `_`."
+          },
+          {
+            "const": "env_name_reserved",
+            "description": "The platform sets this name itself in every run."
+          },
+          {
+            "const": "env_name_is_field",
+            "description": "One of the Widget's Fields gives a run this name."
+          },
+          {
+            "const": "env_value_empty",
+            "description": "The value is empty, so there is nothing to save."
+          },
+          {
+            "const": "env_value_too_long",
+            "description": "The value is longer than 8192 characters."
+          },
+          {
+            "const": "env_value_is_abyss_key",
+            "description": "The value is an Abyss API Key, which never goes to a Widget's runs. Remove it from the `.env`."
+          },
+          {
+            "const": "env_widget_full",
+            "description": "The Widget already holds 50 names; delete one on the website before adding another."
+          }
+        ]
       },
       "InputSchema": {
         "type": "object",
@@ -1100,7 +2387,7 @@
       },
       "UploadRequest": {
         "type": "object",
-        "description": "Which file Field the file is for, and its name. Nothing else is taken.",
+        "description": "Which file Field the file is for, its name, and for a Test Run its Candidate. Nothing else is taken.",
         "required": [
           "field",
           "filename"
@@ -1123,6 +2410,32 @@
             "type": "integer",
             "minimum": 0,
             "description": "The file's size in bytes. Given, a file over the Field's limit is refused now rather than at the upload."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The Candidate the file is for, as a Test Run's press names it. It needs a key with Manage Widgets. Left out, the Field is one of the version the Widget serves."
+          }
+        }
+      },
+      "ThumbnailUploadRequest": {
+        "type": "object",
+        "description": "The image file's name, and its size. Nothing else is taken.",
+        "required": [
+          "filename"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "filename": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255,
+            "description": "The file's name; its extension must be an image's, such as `.png`, `.jpg` or `.webp`."
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "The file's size in bytes. Given, a file over 5 MB is refused now rather than at the upload."
           }
         }
       },
@@ -1177,6 +2490,11 @@
             "type": "boolean",
             "default": true,
             "description": "`false` answers `202` at once with the run `queued`, without waiting for its ending. Left out, the press holds until the run ends."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Run this Candidate of your own Widget, a Draft's included, as its Test Run: the `version` a commit answered. It needs a key with Manage Widgets. Left out, the press runs the version the Widget serves."
           }
         }
       },
@@ -1321,6 +2639,9 @@
                 "type": "null"
               }
             ]
+          },
+          "logs": {
+            "description": "On a Test Run alone (a press with `version`): the run's logs, as the website shows them to the Widget's Creator, so you can show why it failed; null until there are any. Any JSON value. No other run carries this field."
           }
         }
       },
@@ -1461,6 +2782,116 @@
           "price": {
             "$ref": "#/components/schemas/Byssium",
             "description": "With `price_above_max`: what the run costs now."
+          },
+          "violations": {
+            "type": "array",
+            "description": "With `project_invalid`: each thing wrong with the files. With `publish_refused`: each thing the Publish Gate misses.",
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProjectViolation"
+                },
+                {
+                  "$ref": "#/components/schemas/PublishViolation"
+                }
+              ]
+            }
+          },
+          "retry_at": {
+            "$ref": "#/components/schemas/Timestamp",
+            "description": "With `new_widgets_limit_reached`: when your account may make its next Widget through a key."
+          }
+        }
+      },
+      "ProjectViolation": {
+        "type": "object",
+        "description": "One thing wrong with a commit's files.",
+        "required": [
+          "code",
+          "path",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "What is wrong.",
+            "oneOf": [
+              {
+                "const": "missing_file",
+                "description": "`run.py` or `requirements.txt`, as `path` names, is not at the folder's root."
+              },
+              {
+                "const": "extension_refused",
+                "description": "The file at `path` has an extension Abyss refuses, such as an archive; leave it out."
+              },
+              {
+                "const": "outside_project",
+                "description": "The key of the file at `path` leaves the project: it is absolute, holds a `\\`, or a segment that is empty, `.` or `..`."
+              },
+              {
+                "const": "too_large",
+                "description": "The files together weigh more than `max_bytes`; `path` is null."
+              },
+              {
+                "const": "deleted_path_unknown",
+                "description": "The deleted path `path` names nothing in the Base Version."
+              }
+            ]
+          },
+          "path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The path it is about, relative to the folder, or null."
+          },
+          "message": {
+            "type": "string",
+            "description": "The same, for a person. It may change; branch on `code`."
+          }
+        }
+      },
+      "PublishViolation": {
+        "type": "object",
+        "description": "One thing the Publish Gate misses.",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "What is missing.",
+            "oneOf": [
+              {
+                "const": "no_title",
+                "description": "A Draft has no title: save `title` in its Listing Fields."
+              },
+              {
+                "const": "title_out_of_bounds",
+                "description": "The title is too short or too long: save a `title` the listing save takes."
+              },
+              {
+                "const": "no_thumbnail",
+                "description": "A Draft has no thumbnail: upload one and save it as `thumbnail`."
+              },
+              {
+                "const": "no_tag",
+                "description": "A Draft has no tag: save at least one in `tags`."
+              },
+              {
+                "const": "no_candidate",
+                "description": "There is nothing to publish: commit your files into a Candidate."
+              },
+              {
+                "const": "no_test_run",
+                "description": "The Candidate as it stands has no succeeded Test Run of yours: press with its `version` and publish once that run succeeds."
+              }
+            ]
+          },
+          "message": {
+            "type": "string",
+            "description": "The same, for a person. It may change; branch on `code`."
           }
         }
       },
@@ -1481,7 +2912,7 @@
           {
             "const": "invalid_request",
             "x-status": 422,
-            "description": "Fix the part `param` names (null when the body is not a JSON object): a press takes only `input`, `max_price` and `wait` (a boolean), an upload only `field`, `filename` and `size`, the run list only `limit` and `starting_after`, and an `Idempotency-Key` is 1 to 255 visible ASCII characters."
+            "description": "Fix the part `param` names (null when the body is not a JSON object): a press takes only `input`, `max_price`, `wait` (a boolean) and `version` (a whole number), an upload only `field`, `filename`, `size` and `version`, a thumbnail grant only `filename` and `size`, a listing save only its seven Listing Fields, an open of a Project Version only `base_version`, a commit only `deleted_paths` and `interface`, an environment save only `variables` (an object of strings) and `use_file_values` (a boolean), the run list only `limit` and `starting_after`, and an `Idempotency-Key` is 1 to 255 visible ASCII characters."
           },
           {
             "const": "invalid_input",
@@ -1524,6 +2955,46 @@
             "description": "Send an `https` URL on a public address that answers with the file, or upload the file and send its id, in the Field `param` names."
           },
           {
+            "const": "run_target_unavailable",
+            "x-status": 422,
+            "description": "Press with the `version` your last commit answered, or commit your files again: the Widget has no Candidate at this version, because it is not committed, or it was published or replaced since."
+          },
+          {
+            "const": "project_invalid",
+            "x-status": 422,
+            "description": "Fix each thing `violations` names, then open a new Project Version and send the files again: the commit's files are not a Widget project, and nothing was saved."
+          },
+          {
+            "const": "invalid_interface",
+            "x-status": 422,
+            "description": "Fix `interface` as the message says, then commit again: it is not a Widget Interface the website takes."
+          },
+          {
+            "const": "publish_refused",
+            "x-status": 422,
+            "description": "Repair each thing `violations` names, then publish again."
+          },
+          {
+            "const": "listing_field_refused",
+            "x-status": 422,
+            "description": "Fix the Listing Field `param` names, as the message says, and save again: nothing in the save was saved."
+          },
+          {
+            "const": "thumbnail_not_an_image",
+            "x-status": 422,
+            "description": "Send an image, such as a PNG, a JPEG or a WebP, as the thumbnail: by its name at the grant (`param` is `filename`), or by its bytes at the save (`param` is `thumbnail`)."
+          },
+          {
+            "const": "thumbnail_too_large",
+            "x-status": 422,
+            "description": "Send a thumbnail of 5 MB or less."
+          },
+          {
+            "const": "thumbnail_missing",
+            "x-status": 422,
+            "description": "Ask for a new thumbnail grant (`POST /v1/widgets/{id}/listing/thumbnail`), send the image with it, then save its `id`: the one sent is not an upload for this Widget, or it has expired."
+          },
+          {
             "const": "idempotency_key_reused",
             "x-status": 422,
             "description": "Send a new `Idempotency-Key` for a new press; a retry must repeat the first request exactly."
@@ -1537,6 +3008,11 @@
             "const": "run_files_waking",
             "x-status": 409,
             "description": "Wait the `Retry-After` seconds, then press again: the upload in the Field `param` names is an input of one of your runs whose files are asleep, and that run is waking now (`POST /v1/runs/{id}/wake`)."
+          },
+          {
+            "const": "base_version_stale",
+            "x-status": 409,
+            "description": "Open a new Project Version from the version the Widget stands on now (its live version, a Draft's Candidate, or `null` for a Draft with none): it was published, or another save replaced its Candidate, since the Base Version you sent. Nothing was saved, and waiting will not change it."
           },
           {
             "const": "insufficient_funds",
@@ -1554,6 +3030,21 @@
             "description": "An Admin has stopped your account; ask us about it by writing to support@abysshub.com. Your keys work again once the stop is lifted. Retrying will not help."
           },
           {
+            "const": "manage_widgets_required",
+            "x-status": 403,
+            "description": "Make a new key in your Cave with Manage Widgets switched on: this key only runs Widgets, and a key is never given it after it is made. Retrying will not help."
+          },
+          {
+            "const": "key_limited_to_widgets",
+            "x-status": 403,
+            "description": "Use a key with Manage Widgets that runs any Widget: a key held to picked Widgets manages only those and makes no new one. Retrying will not help."
+          },
+          {
+            "const": "run_target_forbidden",
+            "x-status": 403,
+            "description": "Press without `version`: only a Widget's Creator runs one of its versions, and this Widget is not one of yours. Retrying will not help."
+          },
+          {
             "const": "spend_cap_reached",
             "x-status": 400,
             "description": "Raise or remove this key's Spend Cap in your Cave, or wait for the next calendar month (UTC); retrying sooner will not help."
@@ -1567,6 +3058,11 @@
             "const": "rate_limited",
             "x-status": 429,
             "description": "Wait the seconds in the `Retry-After` header, then send the request again."
+          },
+          {
+            "const": "new_widgets_limit_reached",
+            "x-status": 429,
+            "description": "Make the next Widget at `retry_at`, or publish a new version of a Widget you have, which is not counted: your account made the most new Widgets through its keys that 24 hours allow."
           },
           {
             "const": "server_error",

@@ -26,6 +26,7 @@
           },
           "spend_cap": 25,
           "spent_this_month": 3.5,
+          "manage_widgets": false,
           "created_at": "2026-10-01T08:00:00Z"
         }
       }

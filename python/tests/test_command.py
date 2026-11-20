@@ -11,6 +11,7 @@ from fake_server import Replay, load_exchanges
 from test_replay import KEY, assert_fields
 
 from abysshub._command import main
+from abysshub._env import parse_env
 
 COMMANDS = [recording for recording in load_exchanges() if "command" in recording["call"]]
 
@@ -45,6 +46,9 @@ def test_command(recording: dict[str, Any], monkeypatch: pytest.MonkeyPatch, cap
             for path, content in before.items():
                 if path not in outcome["written"]:
                     assert (dir / path).read_bytes() == content, f"{path} was left as it was"
+            # A root .env's names are printed, never its values, an Abyss key left out included.
+            for value in parse_env(call["files"].get(".env", "")).values():
+                assert not value or value not in printed.out + printed.err, "printed a value of the .env"
     finally:
         server.close()
 
@@ -66,3 +70,30 @@ def test_publish_without_a_key_prints_every_fault_and_sends_nothing(
             assert "invalid_api_key" in printed.err
     finally:
         server.close()
+
+
+def test_a_root_env_gives_the_values_python_dotenv_gives() -> None:
+    text = (
+        'A="quoted" # note\n'
+        "B='single' # note\n"
+        'C="line\\nbreak"\n'
+        "C2='line\\nkept'\n"
+        "D=plain # note\n"
+        "E=a#b\n"
+        "export F = spaced\n"
+        "# a comment\n"
+        "G=\n"
+        "H\n"
+        "K='abyss_sk_live_4f1c' # mine\n"
+    )
+    assert parse_env(text) == {
+        "A": "quoted",
+        "B": "single",
+        "C": "line\nbreak",
+        "C2": "line\\nkept",
+        "D": "plain",
+        "E": "a#b",
+        "F": "spaced",
+        "G": "",
+        "K": "abyss_sk_live_4f1c",
+    }

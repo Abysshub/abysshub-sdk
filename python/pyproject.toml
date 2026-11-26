@@ -32,7 +32,7 @@ classifiers = [
 abysshub = "abysshub._command:main"
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["deptry", "pytest", "ruff", "vulture"]
 
 [project.urls]
 Homepage = "https://abysshub.com/docs#api"
@@ -42,3 +42,15 @@ Issues = "https://github.com/Abysshub/abysshub-sdk/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# The dead-code checks, run by tests/test_package.py. vulture's whitelist is today's
+# findings, recorded so only a new one fails; it only shrinks.
+[tool.vulture]
+paths = ["src", "tests", "vulture_whitelist.py"]
+min_confidence = 80
+
+[tool.deptry]
+pep621_dev_dependency_groups = ["dev"]
+
+[tool.ruff.lint]
+select = ["ERA001"]

@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import math
 from collections.abc import Awaitable, Callable, Mapping
-from types import TracebackType
 from typing import Any
 
 import httpx
@@ -142,12 +141,7 @@ class AsyncAbyss(_Base[AsyncRun]):
     async def __aenter__(self) -> AsyncAbyss:
         return self
 
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
+    async def __aexit__(self, *_: object) -> None:
         await self.close()
 
     async def run(

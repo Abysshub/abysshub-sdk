@@ -11,7 +11,11 @@ const report = JSON.parse(
 const found = new Set();
 for (const { file, ...types } of report.issues) {
   for (const [type, items] of Object.entries(types)) {
-    for (const { name } of items) found.add(`${file} ${type} ${name}`);
+    // duplicates and cycles are each a list of the names involved
+    for (const item of items) {
+      const name = Array.isArray(item) ? item.map((each) => each.name).join(", ") : item.name;
+      found.add(`${file} ${type} ${name}`);
+    }
   }
 }
 const recorded = new Set(JSON.parse(readFileSync("dead-code.json", "utf8")));

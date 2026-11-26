@@ -10,10 +10,10 @@ export type Reread = () => Promise<RunData>;
 export type Wake = (options?: CallOptions) => Promise<Run>;
 
 /** A file this many bytes or larger downloads as parallel byte ranges: 64 MiB. */
-export const RANGED_FROM = 64 * 1024 * 1024;
+const RANGED_FROM = 64 * 1024 * 1024;
 
 /** How many parallel byte ranges a large file downloads as. */
-export const RANGES = 16;
+const RANGES = 16;
 
 /** A byte range, its first and last byte included, as a `Range` header names it. */
 type Range = [first: number, last: number];

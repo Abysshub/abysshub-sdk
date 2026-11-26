@@ -10,7 +10,6 @@ import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from importlib import metadata
-from types import TracebackType
 from typing import Any, Generic, TypeVar
 from urllib.parse import quote, urlencode
 
@@ -379,12 +378,7 @@ class Abyss(_Base[Run]):
     def __enter__(self) -> Abyss:
         return self
 
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
+    def __exit__(self, *_: object) -> None:
         self.close()
 
     def run(

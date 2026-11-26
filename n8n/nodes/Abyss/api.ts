@@ -10,7 +10,7 @@ import type {
 import { NodeApiError, NodeOperationError, sleepWithAbort } from 'n8n-workflow';
 
 /** One file a run wrote, as `/v1` answers it. */
-export interface RunFile extends IDataObject {
+interface RunFile extends IDataObject {
 	path: string;
 	size: number;
 	content_type: string;

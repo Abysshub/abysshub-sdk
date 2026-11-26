@@ -43,12 +43,13 @@
   "scripts": {
     "build": "node scripts/version.js && tsc",
     "prepack": "npm run build",
-    "test": "npm run build && node --test test/*.test.js"
+    "test": "npm run build && node --test test/*.test.js && node scripts/dead-code.js"
   },
   "devDependencies": {
     "@anthropic-ai/claude-code": "^2.1.327",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
+    "knip": "^6.48.0",
     "typescript": "^5.9.3"
   }
 }

@@ -128,7 +128,7 @@ test("the credential test reads GET /v1/key with the credential's key and URL", 
   }
 });
 
-test("a key starting abyss_sk_dev_ goes to dev, unless the API URL is set to another than the production default", async () => {
+test("a key starting abyss_sk_dev_ goes to dev, unless the API URL is set to one other than the production default", async () => {
   const recording = byName["run-held-success.json"];
   const devKey = "abyss_sk_dev_fake_for_tests";
   const realFetch = globalThis.fetch;

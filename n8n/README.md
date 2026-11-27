@@ -9,7 +9,7 @@ An [n8n](https://n8n.io) community node that runs an [Abyss](https://abysshub.co
 **Abyss API** takes:
 
 - **API Key:** an API key from your Cave, starting `abyss_sk_`.
-- **API URL:** `https://api.abysshub.com` by default. A key starting `abyss_sk_dev_` needs `https://api.dev.abysshub.com`.
+- **API URL:** `https://api.abysshub.com` by default. With that default, a key starting `abyss_sk_dev_` goes to `https://api.dev.abysshub.com`, as in the libraries. Any other URL is used as it is.
 
 Saving the credential tests it with `GET /v1/key`.
 
@@ -17,7 +17,7 @@ Saving the credential tests it with `GET /v1/key`.
 
 - **Run a Widget** takes a **Widget ID** (`widget_<id>`, or an unlisted Widget's private token) and its **Input** as a JSON object of its fields by name, and returns the run object.
   - **Wait for Result**, on by default, ends the step when the run ends. A failed run fails the step with the run's error message. Off, the step returns the queued run at once: read it later with **Get a Run**.
-  - **Options:** **Max Price**, the most you will pay for the run, and **Idempotency Key**: a press repeated with the same key and input within 24 hours returns the same run.
+  - **Options:** **Max Price**, the most you will pay for the run (`0` means no cap), and **Idempotency Key**: a press repeated with the same key and input within 24 hours returns the same run.
 - **Get a Run** takes a **Run ID** and returns the run object as it is now.
 
 ## Files

@@ -24,7 +24,8 @@ export class AbyssApi implements ICredentialType {
 			name: 'url',
 			type: 'string',
 			default: 'https://api.abysshub.com',
-			description: 'Where the Abyss API is. Keep the default, or use https://api.dev.abysshub.com with a key starting with abyss_sk_dev_.',
+			description:
+				'Where the Abyss API is. Keep the default: a key starting with abyss_sk_dev_ then goes to https://api.dev.abysshub.com. Any other URL is used as it is.',
 		},
 	];
 
@@ -39,7 +40,9 @@ export class AbyssApi implements ICredentialType {
 
 	test: ICredentialTestRequest = {
 		request: {
-			baseURL: '={{$credentials.url}}',
+			// The node's base-URL rule (nodes/Abyss/api.ts), as an expression.
+			baseURL:
+				'={{ ["", "https://api.abysshub.com", "https://api.abysshub.com/"].includes(String($credentials.url || "").trim()) ? (String($credentials.apiKey).startsWith("abyss_sk_dev_") ? "https://api.dev.abysshub.com" : "https://api.abysshub.com") : $credentials.url }}',
 			url: '/v1/key',
 		},
 	};

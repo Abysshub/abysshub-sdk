@@ -128,6 +128,42 @@ test("the credential test reads GET /v1/key with the credential's key and URL", 
   }
 });
 
+test("a key starting abyss_sk_dev_ goes to dev, unless the API URL is set to one other than the production default", async () => {
+  const recording = byName["run-held-success.json"];
+  const devKey = "abyss_sk_dev_fake_for_tests";
+  const realFetch = globalThis.fetch;
+  for (const [apiKey, url, reached] of [
+    [devKey, "https://api.abysshub.com", "https://api.dev.abysshub.com"],
+    [devKey, "", "https://api.dev.abysshub.com"],
+    [devKey, "http://localhost:8000", "http://localhost:8000"],
+    [KEY, "https://api.abysshub.com", "https://api.abysshub.com"],
+    [KEY, "http://localhost:8000", "http://localhost:8000"],
+  ]) {
+    const server = await replay(recording, { key: apiKey });
+    const origins = new Set();
+    // Every request reaches the fake server, wherever the node sent it.
+    globalThis.fetch = (target, init) => {
+      const { origin, pathname, search } = new URL(target);
+      origins.add(origin);
+      return realFetch(`${server.base}${pathname}${search}`, init);
+    };
+    try {
+      await execute({ parameters: press(recording.call), credentials: { apiKey, url } });
+      assert.deepEqual([...origins], [reached], `the node, with ${apiKey} and "${url}"`);
+      assert.equal(resolve(new AbyssApi().test.request.baseURL, { apiKey, url }), reached, `the credential test, with ${apiKey} and "${url}"`);
+    } finally {
+      globalThis.fetch = realFetch;
+      await server.close();
+    }
+  }
+});
+
+test("a Max Price of 0 sends no max_price", async () => {
+  const recording = byName["run-held-success.json"];
+  const { items, error } = await replayNode(recording, { ...press(recording.call), options: { maxPrice: 0 } });
+  assert.ok(items, `expected a run, got ${error}`);
+});
+
 test("the credential's API URL defaults to the production API", () => {
   const url = new AbyssApi().properties.find(({ name }) => name === "url");
   assert.equal(url.default, "https://api.abysshub.com");

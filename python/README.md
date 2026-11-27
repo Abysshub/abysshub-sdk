@@ -150,7 +150,7 @@ A refusal, a failed run, a timeout and a lost connection all raise one class, `A
 A request is sent again, at most `max_retries` times (2 by default), only after:
 
 - **a drop before any headers arrived:** a short backoff, then the same request, with the same `Idempotency-Key` for a press;
-- **`429 rate_limited` and `409 idempotency_key_in_use`:** after the `Retry-After` seconds;
+- **every `429` and `409`** (`rate_limited`, `idempotency_key_in_use`, `run_files_waking`): after the `Retry-After` seconds, or a short backoff when there are none;
 - **a `5xx`:** a short backoff (0.5 s, then 1 s).
 
 When the last try fails too, it raises. Every other refusal raises at once.

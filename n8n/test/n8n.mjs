@@ -12,7 +12,6 @@ export const { AbyssApi } = require("../dist/credentials/AbyssApi.credentials.js
 
 const credentialType = new AbyssApi();
 
-/** A credential expression such as `=Bearer {{$credentials.apiKey}}`, filled in. */
 export function resolve(expression, credentials) {
   if (typeof expression !== "string" || !expression.startsWith("=")) return expression;
   return expression.slice(1).replace(/\{\{\s*\$credentials\.(\w+)\s*\}\}/g, (_, name) => String(credentials[name]));
@@ -41,7 +40,6 @@ export async function httpRequest(options) {
   return { body: data, headers: Object.fromEntries(response.headers), statusCode: response.status, statusMessage: response.statusText };
 }
 
-/** The headers the credential's `authenticate` adds to a request. */
 export function authenticated(options, credentials) {
   const added = Object.fromEntries(
     Object.entries(credentialType.authenticate.properties.headers).map(([name, value]) => [name, resolve(value, credentials)]),
@@ -49,7 +47,6 @@ export function authenticated(options, credentials) {
   return { ...options, headers: { ...options.headers, ...added } };
 }
 
-/** The node's declared defaults. */
 const DEFAULTS = Object.fromEntries(new Abyss().description.properties.map(({ name, default: value }) => [name, value]));
 
 /**

@@ -1,5 +1,4 @@
 export interface Limits {
-  /** How long to wait for the status and headers. */
   connectMs: number;
   /** How long the body may stay silent before it counts as a cut. */
   silenceMs: number;

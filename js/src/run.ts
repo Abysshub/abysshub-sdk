@@ -12,7 +12,6 @@ export type Wake = (options?: CallOptions) => Promise<Run>;
 /** A file this many bytes or larger downloads as parallel byte ranges: 64 MiB. */
 const RANGED_FROM = 64 * 1024 * 1024;
 
-/** How many parallel byte ranges a large file downloads as. */
 const RANGES = 16;
 
 /** A byte range, its first and last byte included, as a `Range` header names it. */
@@ -200,7 +199,6 @@ export class RunFile {
     });
   }
 
-  /** Downloads the file to `path`, making its folders, and answers `path`. */
   async save(path: string): Promise<string> {
     const [fs, { dirname }] = await Promise.all([nodeFS(), nodePath()]);
     const bytes = await this.read();

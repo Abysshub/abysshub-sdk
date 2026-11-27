@@ -13,15 +13,17 @@ Follow this file only when the Creator chose to put it on Abyss (PORT.md, step 3
 
 ## 0. Can Abyss be reached?
 
-The Abyss step needs Abyss's API, `/v1`. Check that it answers before you ask the Creator to do anything, at the address the command and `check_abyss.py` will use (`ABYSS_BASE_URL` when it is set, in the shell or in `port/.env`):
+The Abyss step needs Abyss's API, `/v1`. Check that it answers before you ask the Creator to do anything, at the address the command and `check_abyss.py` will use: `ABYSS_BASE_URL` when it is set, in the shell or in `port/.env`; else `https://api.dev.abysshub.com` when the key in `port/.env` starts `abyss_sk_dev_`; else `https://api.abysshub.com`:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" "${ABYSS_BASE_URL:-https://api.abysshub.com}/v1/openapi.json"
 ```
 
+With a dev key and no `ABYSS_BASE_URL`, put `https://api.dev.abysshub.com` in place of `https://api.abysshub.com`.
+
 Anything but `200` means Abyss can't be reached right now. Tell the Creator so, end with the local runs (for a Port, write it into `CHECK.md`), and hand over the Widget folder, with step 4's upload steps, for them to upload later.
 
-The website is the one whose API that is: abysshub.com for `https://api.abysshub.com`, and for an `ABYSS_BASE_URL` of `https://api.<site>`, `<site>`.
+The website is the one whose API that is: abysshub.com for `https://api.abysshub.com`, dev.abysshub.com for `https://api.dev.abysshub.com`, and for an `ABYSS_BASE_URL` of `https://api.<site>`, `<site>`.
 
 ## 1. An API key
 

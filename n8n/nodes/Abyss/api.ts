@@ -9,7 +9,6 @@ import type {
 } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError, sleepWithAbort } from 'n8n-workflow';
 
-/** One file a run wrote, as `/v1` answers it. */
 interface RunFile extends IDataObject {
 	path: string;
 	size: number;
@@ -17,7 +16,6 @@ interface RunFile extends IDataObject {
 	url: string;
 }
 
-/** A run, as `/v1` answers it. */
 export interface Run extends IDataObject {
 	id: string;
 	status: 'queued' | 'running' | 'succeeded' | 'failed';
@@ -40,7 +38,6 @@ interface Answer {
 
 const DEFAULT_URL = 'https://api.abysshub.com';
 
-/** A press and a read are sent again at most this many times. */
 const MAX_RETRIES = 2;
 
 /** The pause between two re-attaches that both ended without the run's ending. */
@@ -91,7 +88,6 @@ export async function runWidget(
 	return run;
 }
 
-/** Reads a run as it is now, with `GET /v1/runs/{id}`. */
 export async function getRun(ctx: IExecuteFunctions, itemIndex: number, id: string): Promise<Run> {
 	const url = `${await baseUrl(ctx)}/v1/runs/${encodeURIComponent(id)}`;
 	return expectRun(ctx, itemIndex, await send(ctx, itemIndex, 'GET', url, MAX_RETRIES));
@@ -211,7 +207,6 @@ function backoff(attempt: number): number {
 	return Math.min(RETRY_PAUSE_MS * 2 ** attempt, RETRY_PAUSE_CEILING_MS);
 }
 
-/** A refusal as an n8n error carrying the API's message, its code and its request id. */
 function refusal(ctx: IExecuteFunctions, itemIndex: number, answer: Answer): NodeApiError {
 	const body = isObject(answer.body) ? answer.body : {};
 	const error = isObject(body.error) ? body.error : {};
@@ -225,7 +220,6 @@ function refusal(ctx: IExecuteFunctions, itemIndex: number, answer: Answer): Nod
 	});
 }
 
-/** An error's description, such as `invalid_input · request req_…`, from the parts it has. */
 function describe(code: unknown, runId: string | undefined, requestId: unknown): string {
 	const parts = [code, runId && `run ${runId}`, requestId && `request ${String(requestId)}`];
 	return parts.filter((part) => typeof part === 'string' && part !== '').join(' · ');

@@ -1,7 +1,6 @@
 import { nodeFS } from "./node.js";
 import type { Input } from "./types.js";
 
-/** File data held in memory or streamed: a `Blob` or `File`, a `Buffer` or `Uint8Array`, or a stream. */
 export type FileData = Blob | Uint8Array | ReadableStream<Uint8Array> | AsyncIterable<Uint8Array | string>;
 
 export interface FileOptions {
@@ -25,7 +24,6 @@ export function file(source: string | FileData, options: FileOptions = {}): Inpu
   return new InputFile(source, options);
 }
 
-/** Uploads one file for a Field and answers the upload's id. */
 export type Uploader = (field: string, filename: string, data: Blob) => Promise<string>;
 
 /**

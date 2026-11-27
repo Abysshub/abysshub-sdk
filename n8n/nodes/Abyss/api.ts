@@ -38,6 +38,10 @@ interface Answer {
 
 const DEFAULT_URL = 'https://api.abysshub.com';
 
+const DEV_URL = 'https://api.dev.abysshub.com';
+
+const DEV_KEY_PREFIX = 'abyss_sk_dev_';
+
 const MAX_RETRIES = 2;
 
 /** The pause between two re-attaches that both ended without the run's ending. */
@@ -131,10 +135,17 @@ export async function downloadOutputFiles(ctx: IExecuteFunctions, itemIndex: num
 	return binary;
 }
 
+/**
+ * The credential's API URL, as the libraries pick theirs: a key starting `abyss_sk_dev_`
+ * goes to dev unless the URL is set to something other than the production default.
+ * The credential's `test` request follows the same rule.
+ */
 async function baseUrl(ctx: IExecuteFunctions): Promise<string> {
 	const credentials = await ctx.getCredentials('abyssApi');
-	const url = typeof credentials.url === 'string' && credentials.url.trim() !== '' ? credentials.url.trim() : DEFAULT_URL;
-	return url.replace(/\/+$/, '');
+	const url = typeof credentials.url === 'string' ? credentials.url.trim().replace(/\/+$/, '') : '';
+	if (url !== '' && url !== DEFAULT_URL) return url;
+	const isDevKey = typeof credentials.apiKey === 'string' && credentials.apiKey.startsWith(DEV_KEY_PREFIX);
+	return isDevKey ? DEV_URL : DEFAULT_URL;
 }
 
 /** An output file's signed URL is storage's, not `/v1`'s: it is read without the API key. */

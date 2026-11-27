@@ -14,7 +14,7 @@ const credentialType = new AbyssApi();
 
 export function resolve(expression, credentials) {
   if (typeof expression !== "string" || !expression.startsWith("=")) return expression;
-  return expression.slice(1).replace(/\{\{\s*\$credentials\.(\w+)\s*\}\}/g, (_, name) => String(credentials[name]));
+  return expression.slice(1).replace(/\{\{([\s\S]*?)\}\}/g, (_, code) => String(new Function("$credentials", `return (${code});`)(credentials)));
 }
 
 export async function httpRequest(options) {

@@ -121,7 +121,7 @@ export class Abyss implements INodeType {
 						default: 0,
 						typeOptions: { minValue: 0, numberPrecision: 2 },
 						description:
-							"The most you will pay for this run, in Byssium. If the Widget's price has risen above it, nothing runs and nothing is charged.",
+							"The most you will pay for this run, in Byssium. If the Widget's price has risen above it, nothing runs and nothing is charged. 0 means no cap.",
 					},
 				],
 			},
@@ -179,7 +179,8 @@ function input(ctx: IExecuteFunctions, itemIndex: number): IDataObject {
 function pressOptions(ctx: IExecuteFunctions, itemIndex: number): PressOptions {
 	const options = ctx.getNodeParameter('options', itemIndex, {}) as { idempotencyKey?: string; maxPrice?: number };
 	const press: PressOptions = { wait: ctx.getNodeParameter('waitForResult', itemIndex, true) as boolean };
-	if (options.maxPrice !== undefined) press.maxPrice = options.maxPrice;
+	// The field starts at 0 once added, so 0 means no cap rather than a cap no run passes.
+	if (options.maxPrice) press.maxPrice = options.maxPrice;
 	if (options.idempotencyKey) press.idempotencyKey = options.idempotencyKey;
 	return press;
 }

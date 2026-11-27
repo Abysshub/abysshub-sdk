@@ -1,5 +1,5 @@
 {
-  "description": "abysshub publish on a folder that was never published: it reads the key, makes a Draft and writes its id into the Publish File, opens a version, sends every file but the Junk list's, the Publish File, its thumbnail and a root .env with its variants, commits with interface.json, sends the root .env's names and values to the Widget's own environment (but the one whose value is an Abyss key, which it names as left out) and prints each name's outcome, makes the Test Run from the Test Inputs (a file Field's path uploaded for that version, and a Field they leave out at its default), saves the Listing Fields (private, as the Publish File does not say) with the thumbnail, publishes, writes the widget block and prints the link.",
+  "description": "abysshub publish on a folder that was never published: it reads the key, makes a Draft and writes its id into the Publish File, opens a version, sends every file but the Junk list's, the Publish File, its thumbnail, the Test Input file and a root .env with its variants, commits with interface.json, sends the root .env's names and values to the Widget's own environment (but the one whose value is an Abyss key, which it names as left out) and prints each name's outcome, makes the Test Run from the Test Inputs (a file Field's path uploaded for that version as its input only, and a Field they leave out at its default), saves the Listing Fields (private, as the Publish File does not say) with the thumbnail, publishes, writes the widget block and prints the link.",
   "call": {
     "command": [
       "publish"
@@ -221,23 +221,6 @@
           "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
           "X-Amz-Signature": "fake-signature-f6cv1",
           "file": "{\"data\": \"samples/sales.csv\", \"note\": \"Q3\"}"
-        }
-      },
-      "response": {
-        "status": 204
-      }
-    },
-    {
-      "storage": true,
-      "parallel": true,
-      "request": {
-        "method": "POST",
-        "path": "/storage/abysshub-uploads",
-        "form": {
-          "key": "widgets/0f6c/v1/samples/sales.csv",
-          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
-          "X-Amz-Signature": "fake-signature-f6cv1",
-          "file": "month,sales\nJan,3\nJan,3\n"
         }
       },
       "response": {
@@ -542,6 +525,7 @@
     "exit": 0,
     "printed": [
       "https://abysshub.com/w/pK7d2Qx9Lm",
+      "samples/sales.csv",
       ".env.local",
       ".venv/",
       "__pycache__/",

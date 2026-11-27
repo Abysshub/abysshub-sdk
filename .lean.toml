@@ -1,0 +1,11 @@
+[root]
+allow = [".claude-plugin", ".github", ".gitignore", ".ralph", "CLAUDE.md", "CONTEXT.md", "contract", "docs", "exchanges", "js", "LICENSE", "live", "n8n", "python", "README.md", "skills"]
+
+[docs]
+allow = ["README.md", "CLAUDE.md", "CONTEXT.md", "docs/", "skills/", ".ralph/"]
+
+[comments]
+baseline = 658
+
+[deadcode]
+command = "(cd js && npm ci && npm test) && (cd n8n && npm ci && npm test) && (cd python && pip install -e '.[dev]' && pytest)"

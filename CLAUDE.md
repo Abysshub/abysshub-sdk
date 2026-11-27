@@ -1,140 +1,48 @@
 # abysshub-sdk
 
-The official libraries for the Abyss API (`/v1`): **`abysshub`** for JavaScript and Python. This repo is **public** (MIT).
+The official libraries for the Abyss API (`/v1`), written by hand: the npm package `abysshub` (`js/`, TypeScript, ESM with types), the PyPI package `abysshub` (`python/`, with the `abysshub` command), the n8n community node `n8n-nodes-abysshub` (`n8n/`), and the public agent skill `abyss-widget` (`skills/abyss-widget/`). **This repo is public (MIT):** never write a key, a secret or another repo's code into an issue, a pull request or a commit.
 
-- **`js/`** is the npm package `abysshub`: TypeScript, shipped as ESM with types.
-- **`python/`** is the PyPI package `abysshub`: Python, with plain dataclasses and `py.typed`.
-- **`n8n/`** is the n8n community node `n8n-nodes-abysshub`: one node, **Abyss**, calling `/v1` through n8n's own HTTP helper, with no runtime dependencies (n8n's verified-node rules). `release.yml` publishes it beside the JS package, with provenance, which n8n's verification needs (sdk #59); `npm test` there replays the exchanges its operations make and runs n8n's scanner rules.
-- **`exchanges/`** holds the recorded exchanges. Each one is a JSON file of requests and responses, including chunks with leading spaces and cuts. A tiny fake server replays them. **Both libraries pass the same exchanges, with the same outcome,** except a recorded command (`call.command`): the `abysshub` command and the routes that change a Widget are the Python package's alone, so only `pytest` replays them (ADR-0001).
-- **`contract/openapi.json`** is `/v1`'s contract, copied from the api. Every recorded body is validated against it. It is never edited here (see "The contract file").
-- **`live/`** is the nightly live run against dev (see "The nightly live run"): `live.mjs` and `live.py` make the same checks through each library, and `widget/` is the source of the probe Widget they press.
-- **`skills/abyss-widget/`** is the public agent skill (sdk #45) that teaches a coding agent to build a Widget, or Port a tool (`CONTEXT.md`'s Port, Case, Done List and Check). It sits outside every package and ships in none. Its `WIDGET.md` quotes the platform's Widget facts from the api, which this repo cannot read: a platform change to them changes that file too. Its `scripts/check_abyss.py` calls the Python library, so a change to the library's public surface keeps it working, as with `live/`. Its `ABYSS.md` runs the `abysshub` command and reads its stops by `code` (sdk #85): a change to the command's codes or flags changes that file too.
-- **`.claude-plugin/marketplace.json`** makes the repo a Claude Code plugin marketplace, `abysshub` (sdk #76). Its one plugin, `abyss-widget`, is the repo itself with `skills/abyss-widget` as its skill, never a copy. `npm test` in `js/` runs Claude Code's validator on it in strict mode, from the dev dependency `@anthropic-ai/claude-code`.
+## Rules
 
-The libraries are written by hand. The api's ADR-0042 (Amendments 2026-10-04 and 2026-10-05) decided them, and the parts a change here needs are quoted below, because this repo cannot read the api's.
+- The base branch is `main`. Issues live here: `gh issue … -R Abysshub/abysshub-sdk`.
+- Words: `CONTEXT.md` is the glossary. Its platform-terms section is generated from the api's `CONTEXT.md`, so change a platform word there, never in the copy. Decisions: `docs/adr/`. A decision that shapes `/v1` itself belongs to the api's ADRs.
+- `contract/openapi.json` is `/v1`'s contract, copied from the api's `develop`. Never edit it by hand: the workspace root refreshes it with `make sdk-contract`. When a refresh turns the exchange validation red, the libraries need a Slice.
+- **Both libraries pass the same `exchanges/`, with the same outcome.** A change to `exchanges/` keeps JS, Python and n8n green. A recorded command (`call.command`) is the exception: the `abysshub` command and the routes that change a Widget are Python's alone (ADR-0001).
+- **JS has no runtime dependency** and runs on Node 20+; in a browser `new Abyss()` throws. **Python has one, `httpx`,** and runs on 3.9+, with a sync `Abyss` and an async `AsyncAbyss` that share methods and exchanges. The n8n node has none, by n8n's verified-node rules. Each package has a test of its dependency rule.
+- **Code runs on Node 20 and Python 3.9.** Python 3.9 is the `python3` macOS ships, so a caller's first try on a Mac runs on it. It rules out `match`, `X | Y` outside an annotation, and 3.10's library additions (`zip(strict=)`, `dataclass(slots=)`). Raising a floor is the maintainer's decision, released as a minor version.
+- **The import shape never breaks:** `import Abyss, { file } from "abysshub"`, `const { Abyss, file } = require("abysshub")` (Node 20.19+ and 22.12+; there is no CommonJS build), and `from abysshub import Abyss, file`. The api's per-Widget code prints these.
+- **Returned data keeps `/v1`'s names** in both languages. The library's own options follow each language (JS `maxPrice`, Python `max_price`). A Field's name is never converted.
+- Keep each package's `name`, its `version` of `0.0.0` and its `repository`: `release.yml` computes every version, and trusted publishing checks `repository`.
+- **Agents never publish:** no `npm publish`, `twine`, release, tag or `gh workflow run`, and no change under `.github/workflows/`. The loop's token has no `workflow` scope, so GitHub refuses the push and the Lane fails. An issue that needs a workflow change is `ready-for-human`, done in a session with the maintainer.
 
-## The `/v1` contract the libraries speak
+## The skill
 
-- **Address:** `https://api.abysshub.com`. A key starting `abyss_sk_dev_` goes to `https://api.dev.abysshub.com` instead. `ABYSS_BASE_URL` (or the `baseURL` / `base_url` option) overrides both.
-- **Auth:** `Authorization: Bearer <key>`. The key comes from `ABYSS_API_KEY`, or the `apiKey` / `api_key` option.
-- **The press:** `POST /v1/widgets/{widget}/runs`, where `{widget}` is `widget_<id>` or an unlisted Widget's private token.
-  - The JSON body is `{"input": {…}, "max_price"?: number, "wait"?: false}`. The header `Idempotency-Key` is optional and kept for 24 h.
-  - **By default it holds.** It sends `200` and its headers at once (`Location: <base>/v1/runs/run_…`, `Request-Id`), then a space every 2 s, then the run JSON when the run ends. Read `status`, never the HTTP code, to learn how a run ended.
-  - `"wait": false` answers `202` at once, with the run `queued`.
-  - When the holds are full, it answers `202` at once.
-  - After 1 h, it answers `200` with the run still `running`.
-  - A deploy can cut a hold.
-- **The read:** `GET /v1/runs/{id}` answers at once. With `?wait=true` it holds like the press.
-- **A repeat with the same `Idempotency-Key` and body** answers the same run and holds again, with `Idempotent-Replayed: true`.
-- **Uploads:** `POST /v1/widgets/{widget}/uploads` with `{"field", "filename", "size"?}` answers `{"id", "upload": {"url", "fields"}}`.
-  - POST every `fields` entry, then the file as `file`, to `url` (S3).
-  - Then put `id` in `input`. A file Field also takes an `https` URL string.
-- **Other routes:**
-  - `GET /v1/runs?limit=&starting_after=` answers `{data, has_more}`;
-  - `GET /v1/widgets/{widget}` answers `{id, name, description, url, price, free_runs, input_schema}`;
-  - `GET /v1/key`;
-  - `GET /v1/openapi.json`.
-- **The run object:** `{id, widget, status: queued|running|succeeded|failed, price, result, output_files: [{path, size, content_type, url}], error: {code, message}|null, created_at, started_at, ended_at}`. Each `url` is signed fresh on every read, and expires.
-- **Errors:** `{"error": {"code", "message", "param"?, "doc_url", …extras}, "request_id"}`.
+`skills/abyss-widget/` teaches a coding agent to build a Widget or Port a tool. It ships in no package; `.claude-plugin/marketplace.json` makes the repo a plugin marketplace whose one plugin is this folder, and `npm test` in `js/` validates it.
+- `WIDGET.md` quotes the platform's Widget facts from the api, which this repo cannot read: a platform change to them changes that file too.
+- `scripts/check_abyss.py` calls the Python library, and `ABYSS.md` reads the `abysshub` command's stops by `code`. A change to the library's public surface, or to the command's codes or flags, keeps them working.
 
-  | Status | Codes |
-  |---|---|
-  | 401 | `invalid_api_key` |
-  | 404 | `not_found` |
-  | 422 | `invalid_request`, `invalid_input`, `held_input_*`, `input_unreachable`, `idempotency_key_reused` |
-  | 402 | `insufficient_funds` (+ `shortfall`) |
-  | 400 | `spend_cap_reached`, `price_above_max` |
-  | 409 | `idempotency_key_in_use` (+ `Retry-After`) |
-  | 429 | `rate_limited` (+ `Retry-After`) |
-  | 500 | `server_error` |
+## Commands
 
-  A failed run's `error.code` is `widget_fault`, `platform_fault` or `budget_exceeded`.
+- JS: `cd js && npm ci && npm test` (build, tests, knip). n8n: `cd n8n && npm ci && npm test` (build, tests, n8n's scanner, knip). Python: `cd python && pip install -e ".[dev]" && pytest` (tests, vulture, deptry, ruff's ERA001).
+- The Merge Proof runs all three. CI runs them on Node 20 and 24 and Python 3.9 and 3.14.
+- Dead code: today's findings sit in `js/dead-code.json`, `n8n/dead-code.json` and `python/vulture_whitelist.py`. Only a new finding fails, and a recorded finding that is gone fails until it leaves the record.
 
-## The library's own rules
+## Traps
 
-- **The call:** `abyss.run(widget, input)` presses, holds and re-attaches, then returns a succeeded run. Under it there is one method per route: `runs.create / get / list`, `widgets.get`, `uploads.create` and `key()`.
-- **Re-attaching:** a hold cut after its headers arrived, a `202`, and a `200` still `running` are all followed by `GET <Location>?wait=true` until the run ends. Re-attaching has no limit and is not a retry. 10 s to connect; 30 s of silence counts as a cut.
-- **Retries:** at most 2 (`maxRetries` / `max_retries`), only for a drop before any headers, `429`, `409` (wait `Retry-After`) and `5xx` (short backoff). Every press carries one `Idempotency-Key`, a fresh UUID unless the caller sets it. Every other refusal raises at once.
-- **Errors:** a refusal or a failed run raises one `AbyssError` carrying `code`, `message`, `param`, `doc_url` and `request_id`, plus `run` for a failed run. Once a call has learned its run's id, from a `Location` header as soon as the headers arrive or from a run body, every `AbyssError` it raises carries it as `run_id`; before that, `run_id` is null. There is no class per status.
-- **Timeouts:** none by default. An opt-in `timeout` (and `signal` in JS) stops the waiting, never the run, and raises `AbyssError` with the library-only code `timeout`, `.run` (the run as last seen, or null) and `.run_id`, so the caller recovers with `runs.get(run_id, wait)` instead of pressing again. Its `request_id` is the latest response's. Nothing is sent after the deadline or the abort.
-- **Files:** `file(path)` is the form the docs show; native files and bytes are accepted too, and a string passes through as an `https` URL or an upload id. The library uploads once and retries only the press. `run.save(dir)` saves every output file, and each file has `save()` and `read()`; an expired URL is refreshed once by re-reading the run.
-- **The import shape:** the api's per-Widget code fixes it: `import Abyss, { file } from "abysshub"` in JS (`Abyss` is the default export, and the named `Abyss` is the same class), `const { Abyss, file } = require("abysshub")` from CommonJS on Node 20.19+ and 22.12+ (the exports map's last condition is `"default"`, on the same ES module file; there is no CommonJS build), and `from abysshub import Abyss, file` in Python. None may break.
-- **The naming rule:** returned data keeps `/v1`'s names in both languages. The library's own options follow each language (JS `maxPrice`, Python `max_price`). A Field's name is never converted.
-
-## The command's own rules
-
-The Python package ships the command `abysshub` (`[project.scripts]`, and `python -m abysshub`), decided by `docs/adr/0001`. The JavaScript package and the n8n node have none.
-
-- **`abysshub publish <folder>`** does what a person does on the website's Publish page, through the routes that change a Widget: it makes a Draft and writes its id into the Publish File at once, opens a version, sends each file under its path, commits with `interface.json` as the Widget Interface, makes the Test Run from the Test Inputs and waits for it as `run()` waits, saves the Listing Fields and the thumbnail, publishes, writes the `widget` block and prints the link the api answers.
-- **A second publish:** when the `widget` block holds a `version`, `publish` makes a new version of the same Widget. Before any upload it reads `GET /v1/widgets/{id}/listing` and prints it beside the folder. The Widget **moved** when its `listing_revision` or `live_version` is not the block's: then it stops with `widget_moved` and names what moved, unless `--force` makes the folder win. Otherwise it opens the version on the live one and saves only the Listing Fields that differ. The block's `thumbnail_sha256` is the thumbnail last sent: the thumbnail is sent again when the file changed, or with `--force` over a listing that moved.
-- **`abysshub status <folder>`** changes nothing, on Abyss or in the folder: it reads the Widget, its listing and `GET /v1/widgets/{id}/environment`, and prints the link, the live version beside the block's, the same comparison `publish` prints, where each Environment name comes from (never a value) and whether the Widget moved. A folder whose block holds no `version` was never published: it says so, sends nothing and exits zero.
-- **`abysshub pull <folder>`** writes the website's value of each Listing Field the Publish File holds, the thumbnail to the path it names (`thumbnail_sha256` becomes the pulled file's), and the `listing_revision` into the block, and prints each value it changed. It never touches code: a newer live version keeps the block's `version`, so only `publish --force` replaces it.
-- **The two files:** the Publish File `abyss.json` (the Listing Fields, the thumbnail's path, and the `widget` block the command writes; `visibility` is `private` unless it says) and the Test Inputs `test_inputs.json` (one value for each Field; a file Field's value is a path in the folder).
-- **The check:** before any request that changes a Widget, `publish` checks the folder (`run.py`, `requirements.txt`, the Publish File's title, tag and thumbnail, the Test Inputs against `interface.json`, a file Field's path) and the key (`GET /v1/key` and its `manage_widgets`), and prints every fault in one run, each with its code. A Field the Test Inputs leave out takes its `default`.
-- **What it never sends:** what the Junk list names (the api answers it when a version opens; the command keeps no copy), the Publish File, its thumbnail, and a root `.env` with its `.env.*` variants. It prints each one it left out.
-- **The root `.env`:** never a file, it becomes the Widget's own environment. `publish` reads it as python-dotenv does (`_env.py`, with no dependency) and, after the commit and before the Test Run, sends its names and values with `PUT /v1/widgets/{id}/environment`, then prints each name's outcome as the api answers it, never a value. A value starting `abyss_sk_` is never sent: it is named as left out. A value the Widget already holds is kept unless `--use-env-file`. The `.env.*` variants are never read, and `ABYSS_API_KEY` never comes from the folder.
-- **A stop:** the command asks nothing at a prompt. Every stop exits non-zero and prints its `code`. A failed Test Run prints the run's logs and publishes nothing; the Draft's id and its Candidate (`widget.candidate`) are already in the Publish File, so the next `publish` takes up the same Draft.
-- **No new dependency:** it uses `httpx` through the client, and runs on Python 3.9.
-
-## House rules
-
-- **JS has no dependencies.** Not one runtime `dependency` in `js/package.json`; dev tools only. It runs on Node 20+, Bun and Deno, and in a browser `new Abyss()` throws.
-- **Python has one dependency, `httpx`.** Python 3.9+, a sync client `Abyss` and an async `AsyncAbyss` on httpx's async client, with the same methods and the same exchanges. `python/pyproject.toml` declares a `dev` extra with the test tools.
-- **Oldest supported versions first.** Code must run on Node 20 and Python 3.9. CI also runs newer versions, Bun and Deno.
-  - **Python 3.9 is the `python3` that macOS ships**, so a caller's first try on a Mac runs on it, though CPython ended 3.9 in October 2025. It rules out `match`, `X | Y` outside an annotation (annotations are lazy under `from __future__ import annotations`; a type alias is not), and 3.10's library additions such as `zip(strict=)` and `dataclass(slots=)`.
-  - **Raising a floor is a maintainer's decision**, released as a minor version. pip then gives a caller on the old Python the last release that ran on it (npm does not: it warns on `engines` and installs the newest).
-- **The tests:** `npm test` in `js/` and `n8n/`, and `pytest` in `python/`. `.github/workflows/ci.yml` runs all three on every pull request, on the oldest and the newest versions. A change to `exchanges/` keeps both languages green.
-- **The dead-code checks** run inside those tests: knip in `npm test` of `js/` and `n8n/` (`js/scripts/dead-code.js`), and vulture at confidence 80, deptry and ruff's commented-out-code rule in `pytest` (`tests/test_package.py`). Today's findings are recorded in `js/dead-code.json`, `n8n/dead-code.json` and `python/vulture_whitelist.py`, so only a new one fails. The record only shrinks: a recorded finding that is gone fails until it leaves the record.
-- **The packages started as placeholders that hold the published names.** Each one has a test of its dependency rule. Build on `js/package.json`, `n8n/package.json` and `python/pyproject.toml`: keep their `name`, their `version` of `0.0.0`, and `repository` (trusted publishing checks it).
-- **This repo is public.** Its issues, pull requests and commits are visible to anyone. Never write a key, a secret, or another repo's code into them.
-
-## The contract file
-
-`contract/openapi.json` is a copy of the api's `resources/v1/openapi.json` on its `develop` branch. It is refreshed from the abyss workspace with `make sdk-contract`, then committed here. It is never edited by hand. The nightly live run fails when it differs from what dev serves at `/v1/openapi.json`. When a refresh turns the exchange validation red, the libraries need a Slice.
-
-## The nightly live run
-
-`.github/workflows/live.yml` runs every night at 04:17 UTC, and on demand. It is red when the libraries, dev's `/v1` or the api's per-Widget code have drifted apart.
-- **The contract job** diffs `contract/openapi.json` against dev's `/v1/openapi.json`.
-- **The js (Node 20) and python (3.9) jobs** install the library the way a caller does: JS packed and installed in a folder of its own, Python built and installed, not editable. Each runs its `live/` script with the `ABYSS_DEV_API_KEY` secret. It makes five checks:
-  - `run()` with a JSON input;
-  - `run()` with a file input;
-  - `run.save()`;
-  - one `invalid_input` refusal;
-  - the probe Widget's code, run exactly as `GET /api/products/{id}/api-access` (the Widget page's API panel) returns it, with the files it names.
-- **Output:** each check prints one line. A broken one prints its `code` and `request_id`, and the job fails.
-- **The probe** is the Actions variable `ABYSS_PROBE_WIDGET`. It names `live/widget`, published on dev as a public, free Widget from a Test Run that sent a text and a `.txt` file. The scripts know its Fields (`text`, `file`) and its two outputs (`output.json`, `echo.txt`). A change to the probe changes `live/widget` and both scripts together.
-- **The scripts are not tests.** `npm test` and `pytest` never collect them, so the tests never call the live API. A change to the libraries' public surface keeps both scripts working, and agents may change them. The workflow itself is a maintainer's (see "Releases").
-
-## Releases
-
-- **`.github/workflows/release.yml` is the only workflow that publishes.** It runs `ci.yml` on the commit first and publishes only when the tests pass.
-- **Every merge to `main` publishes a pre-release:** npm `abysshub@next` and `n8n-nodes-abysshub@next` and a PyPI `.devN`, in the `next` environment, which deploys from `main` only. This is the dev track: dev walks install the library the way a caller would.
-- **A stable version publishes only from a published GitHub Release tagged `vX.Y.Z`:** npm `latest` for both packages and a final PyPI version, in the `release` environment, which waits for a maintainer's approval.
-- **The workflow computes every version.** A stable version is its tag. A pre-release is the patch after the newest `vX.Y.Z` tag on `main`, plus the number of commits since that tag: `0.1.1-dev.4` on npm, `0.1.1.dev4` on PyPI. The `0.0.0` in the package files is never bumped.
-- **Publishing uses trusted publishing only.** Each registry trusts `release.yml` in the `next` and `release` environments, and nothing else. No token is stored anywhere.
-- **Agents never publish.** They never run `npm publish` or `twine`, never create a release or a tag, never run `gh workflow run`, never change a package's name or version, and never edit `release.yml`.
-- **Agents never change anything under `.github/workflows/`.** The ralph loop's token deliberately has no `workflow` scope, so CI, which holds the dev key and trusted publishing, stays out of an agent's reach. GitHub refuses such a push, and the lane fails after its review (sdk #8, 2026-10-05). An issue that needs a workflow change is `ready-for-human` and is done in a Claude Code session with a maintainer.
-
-## Docs
-
-The glossary is `CONTEXT.md` and the decisions are in `docs/adr/`, both created when there is something to write. A decision that shapes `/v1` itself belongs to the api's ADRs, not here.
-
-## Git and issues
-
-- The base branch is **`main`** (there is no `develop`). Branches and pull requests target it.
-- Issues live in this repo: `gh issue … -R Abysshub/abysshub-sdk`. The triage labels are `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
+- `timeout` is in seconds in both languages, and there is none by default, so `run()` may wait forever. It stops the waiting, never the run.
+- `runs.create()` returns a failed run; `run()` raises `AbyssError` with `.run`.
+- The HTTP and retry code exists three times (JS, Python, n8n), and the copies disagree on what counts as success. A fix in one usually belongs in all three.
+- The n8n node ignores the `abyss_sk_dev_` prefix and defaults to prod, where both libraries switch to dev.
+- `publish` writes `abyss.json` several times mid-flow; a failed run leaves its Draft and Candidate there, and the next `publish` takes them up.
+- `live/` is the nightly live run against dev (`.github/workflows/live.yml`). Its scripts are not tests: `npm test` and `pytest` never collect them, and a change to the public surface keeps them working. The probe Widget is `live/widget`; a change to it changes both scripts.
+- Every merge to `main` publishes a pre-release (`next`, `.devN`); a stable version publishes only from a GitHub Release `vX.Y.Z`, after the maintainer's approval.
 
 ## Terminal output
 
-Never pipe raw command output into context. Aim for 20 lines or fewer on success and 40 or fewer on failure.
+Never put raw command output into context: at most 20 lines on success and 40 on failure.
 
 ```bash
 <command> 2>&1 | grep -E "error|Error|FAIL|failed|passed|✓" | tail -20; echo "exit:$?"
 ```
 
-For output that may run past about 50 lines (full test suites, installs), redirect it, then tail:
-
-```bash
-<command> > /tmp/cmd.log 2>&1 && echo OK || { echo "FAILED — last 30:"; tail -30 /tmp/cmd.log; }
-```
+For long output (whole suites, installs), redirect to a file and tail its last 30 lines.

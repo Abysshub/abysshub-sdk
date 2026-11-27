@@ -292,7 +292,9 @@ def publish(
         _is_project_version,
         "The version answered without its number, form and Junk list.",
     )
-    sent, left_out = _folder_files(folder, opened["junk"], publish_file.get("thumbnail"))
+    # The Test Run's input files go up as its input, never as project content.
+    kept_back = [publish_file.get("thumbnail"), *_test_input_files(widget_folder.test_input, interface)]
+    sent, left_out = _folder_files(folder, opened["junk"], kept_back)
     for path in left_out:
         print(f"Left out {path}")
     upload = opened["upload"]
@@ -462,9 +464,10 @@ def pull(abyss: Abyss, folder: Path, publish_file: dict[str, Any]) -> None:
     """Writes the website's value of each Listing Field the Publish File holds into it, the
     Widget's thumbnail to the path the Publish File names, and the listing revision into the
     ``widget`` block, and prints each value it changed. It never touches code: a newer live
-    version is only named."""
+    version is only named. A block with a Widget's id and no version takes over that Widget,
+    published on the website: its live version goes into the block too."""
     block = dict(publish_file.get("widget") or {})
-    if "version" not in block:
+    if "id" not in block:
         raise AbyssError(
             "not_published",
             f"{folder} was never published, so there is nothing to pull. `abysshub publish {folder}` publishes it.",
@@ -479,6 +482,15 @@ def pull(abyss: Abyss, folder: Path, publish_file: dict[str, Any]) -> None:
         )
     widget = block["id"]
     listing = _read_listing(abyss, widget)
+    if "version" not in block:
+        if listing["live_version"] is None:
+            raise AbyssError(
+                "not_published",
+                f"{widget} is a Draft, with nothing live to pull. `abysshub publish {folder}` publishes it.",
+            )
+        block.pop("candidate", None)
+        block["version"] = listing["live_version"]
+        print(f"Took over {widget}: version {block['version']} is live, and the folder is its source from now on.")
     print(f"Pulled the listing of {widget} into the folder:")
     changed = False
     for name, value in _listing_fields(publish_file).items():
@@ -509,16 +521,15 @@ def pull(abyss: Abyss, folder: Path, publish_file: dict[str, Any]) -> None:
         )
 
 
-def _folder_files(folder: Path, junk: dict[str, Any], thumbnail: str | None) -> tuple[list[str], list[str]]:
+def _folder_files(folder: Path, junk: dict[str, Any], kept_back: list[Any]) -> tuple[list[str], list[str]]:
     """The folder's files to send, and what it leaves out, by their paths in the folder:
-    what the Junk list names, the Publish File, its thumbnail, and a root ``.env`` with its
-    variants. A folder that is left out is named once, with a ``/``."""
+    what the Junk list names, the Publish File, the paths ``kept_back`` (its thumbnail and the
+    Test Input files), and a root ``.env`` with its variants. A folder that is left out is
+    named once, with a ``/``."""
     names = junk.get("names") or []
     markers = junk.get("markers") or []
     root_names = [*(junk.get("root") or []), *ROOT_ENV]
-    skipped = {PUBLISH_FILE}
-    if thumbnail:
-        skipped.add(Path(thumbnail).as_posix())
+    skipped = {PUBLISH_FILE, *(Path(path).as_posix() for path in kept_back if isinstance(path, str) and path)}
     sent: list[str] = []
     left_out: list[str] = []
     for top, dirs, files in os.walk(folder):
@@ -579,9 +590,7 @@ def _test_run(
     """Makes the Test Run of the Candidate from its input and waits for its ending,
     as ``run()`` waits. A file Field's value is a path in the folder, uploaded for that
     Candidate. Answers the run, failed or not."""
-    file_fields = {
-        field.get("name") for field in interface or [] if isinstance(field, dict) and field.get("type") == "file"
-    }
+    file_fields = _file_fields(interface)
 
     def value(name: str, item: Any) -> Any:
         if name not in file_fields:
@@ -596,6 +605,20 @@ def _test_run(
     reply = press if _has_ended(press) else abyss._hold(call, abyss._wait_url(press), _has_ended)
     assert reply.run is not None
     return reply.run
+
+
+def _file_fields(interface: list[Any] | None) -> set[Any]:
+    """The names of the file Fields of ``interface.json``."""
+    return {field.get("name") for field in interface or [] if isinstance(field, dict) and field.get("type") == "file"}
+
+
+def _test_input_files(test_input: dict[str, Any], interface: list[Any] | None) -> list[Any]:
+    """The paths a file Field's Test Input names: the Test Run's input files."""
+    paths: list[Any] = []
+    for name in _file_fields(interface):
+        value = test_input.get(name)
+        paths.extend(value if isinstance(value, list) else [value])
+    return paths
 
 
 def _save_listing(

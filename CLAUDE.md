@@ -32,7 +32,6 @@ The official libraries for the Abyss API (`/v1`), written by hand: the npm packa
 - `timeout` is in seconds in both languages, and there is none by default, so `run()` may wait forever. It stops the waiting, never the run.
 - `runs.create()` returns a failed run; `run()` raises `AbyssError` with `.run`.
 - The HTTP and retry code exists three times (JS, Python, n8n), and the copies disagree on what counts as success. A fix in one usually belongs in all three.
-- The n8n node ignores the `abyss_sk_dev_` prefix and defaults to prod, where both libraries switch to dev.
 - `publish` writes `abyss.json` several times mid-flow; a failed run leaves its Draft and Candidate there, and the next `publish` takes them up.
 - `live/` is the nightly live run against dev (`.github/workflows/live.yml`). Its scripts are not tests: `npm test` and `pytest` never collect them, and a change to the public surface keeps them working. The probe Widget is `live/widget`; a change to it changes both scripts.
 - Every merge to `main` publishes a pre-release (`next`, `.devN`); a stable version publishes only from a GitHub Release `vX.Y.Z`, after the maintainer's approval.

@@ -14,7 +14,6 @@ export interface RunError {
   message: string;
 }
 
-/** One file a run wrote, as `/v1` sends it. */
 export interface RunFileData {
   path: string;
   size: number;
@@ -22,7 +21,6 @@ export interface RunFileData {
   url: string;
 }
 
-/** A run, as `/v1` sends it. */
 export interface RunData {
   id: string;
   widget: string;
@@ -47,7 +45,6 @@ export interface RunList<R = RunData> {
   has_more: boolean;
 }
 
-/** A Widget, as the caller about to press it sees it. */
 export interface Widget {
   id: string;
   name: string | null;
@@ -57,7 +54,6 @@ export interface Widget {
   price: number;
   /** The caller's Free Runs on this Widget; null for their own Widget and for a free one. */
   free_runs: { limit: number; remaining: number } | null;
-  /** The JSON Schema the input must match. */
   input_schema: Record<string, unknown>;
 }
 

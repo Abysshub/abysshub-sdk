@@ -8,7 +8,6 @@ import { AbyssApi, authenticated, execute, httpRequest, resolve } from "./n8n.mj
 
 const KEY = "abyss_sk_fake_for_tests";
 
-/** The recordings the node replays, each with the parameters its call is made with. */
 const OPERATIONS = {
   "files-asleep-save.json": (call) => ({ operation: "get", runId: call.id, downloadOutputFiles: true }),
   "files-output-expired.json": (call) => ({ ...press(call), downloadOutputFiles: true }),
@@ -33,7 +32,6 @@ const OPERATIONS = {
   "runs-get.json": (call) => ({ operation: "get", runId: call.id }),
 };
 
-/** A recorded `run` or `runs.create`, as the Run a Widget operation's parameters. */
 function press(call) {
   const options = {};
   if (call.options?.max_price !== undefined) options.maxPrice = call.options.max_price;
@@ -56,7 +54,6 @@ function assertFields(actual, expected, where) {
   }
 }
 
-/** Replays `recording` through the node, made with `parameters`, and answers its output or its error. */
 async function replayNode(recording, parameters, extra = {}) {
   const server = await replay(recording, { key: KEY });
   try {

@@ -27,7 +27,6 @@ def test_command(recording: dict[str, Any], monkeypatch: pytest.MonkeyPatch, cap
             monkeypatch.setenv("ABYSS_BASE_URL", server.base)
             before = {path: (dir / path).read_bytes() for path in call["files"]}
             commands = [call["command"], *(call.get("then") or [])]
-            # Each command before the last must go through.
             for command in commands[:-1]:
                 assert main([*command, str(dir)]) == 0, capsys.readouterr().err
             exit = main([*commands[-1], str(dir)])

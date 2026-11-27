@@ -1,0 +1,74 @@
+{
+  "description": "abysshub pull on a folder whose Publish File names a Draft, with no version: Abyss has nothing live for it, so there is nothing to take over. It reads the listing, stops with not_published and leaves the folder as it was.",
+  "call": {
+    "command": [
+      "pull"
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "Word Counter",
+        "tags": [
+          "text"
+        ],
+        "description": "Counts the words in a text.",
+        "thumbnail": "cover.png",
+        "widget": {
+          "id": "widget_1662",
+          "candidate": 1
+        }
+      },
+      "test_inputs.json": {
+        "text": "one two three"
+      },
+      "interface.json": [
+        {
+          "type": "text-field",
+          "name": "text",
+          "label": "Text",
+          "isRequired": true
+        }
+      ],
+      "run.py": "import os\nprint(len(os.environ['text'].split()))\n",
+      "requirements.txt": "",
+      "cover.png": "PNG a cover"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/widgets/widget_1662/listing",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_M1o2V3e4D5l6I7s8T9i0N1XX"
+        },
+        "body": {
+          "id": "widget_1662",
+          "title": "Word Tally",
+          "description": "Counts the words in a text.",
+          "tags": [
+            "text"
+          ],
+          "visibility": "private",
+          "price": 0,
+          "free_runs": 0,
+          "thumbnail": null,
+          "listing_revision": "7d3f18b0e2c9a645",
+          "live_version": null
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "exit": 1,
+    "printed": [
+      "not_published"
+    ],
+    "written": {}
+  }
+}

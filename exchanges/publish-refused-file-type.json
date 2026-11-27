@@ -1,0 +1,258 @@
+{
+  "description": "abysshub publish on a Draft whose Test Input is a spreadsheet, a file type Abyss refuses as project content, and which also holds an archive, another refused type. The Test Input file is left out of the project's files, as the thumbnail is, and named so; the archive, which is no Test Input, is sent, and the commit refuses it with project_invalid, which stops the publish before any Test Run. The Publish File is left as it was.",
+  "call": {
+    "command": [
+      "publish"
+    ],
+    "files": {
+      "abyss.json": {
+        "title": "Sheet Totals",
+        "tags": [
+          "spreadsheet"
+        ],
+        "description": "Sums each column of a spreadsheet.",
+        "thumbnail": "thumbnail.png",
+        "widget": {
+          "id": "widget_1671"
+        }
+      },
+      "test_inputs.json": {
+        "sheet": "test/sales.xlsx"
+      },
+      "interface.json": [
+        {
+          "type": "file",
+          "name": "sheet",
+          "label": "Spreadsheet",
+          "isRequired": true,
+          "mimes": [
+            "xlsx"
+          ],
+          "multiple": false
+        }
+      ],
+      "run.py": "print('totals')\n",
+      "requirements.txt": "openpyxl==3.1.5\n",
+      "test/sales.xlsx": "PK a spreadsheet",
+      "data/archive.zip": "PK an archive",
+      "thumbnail.png": "PNG a thumbnail"
+    }
+  },
+  "exchanges": [
+    {
+      "request": {
+        "method": "GET",
+        "path": "/v1/key",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Request-Id": "req_K1e2Y3m4A5n6A7g8E9n0E1w2"
+        },
+        "body": {
+          "name": "publish from my laptop",
+          "key": "abyss_sk_…7c2e",
+          "user": {
+            "id": 412,
+            "name": "ada"
+          },
+          "spend_cap": 10,
+          "spent_this_month": 0,
+          "manage_widgets": true,
+          "created_at": "2026-11-20T08:00:00Z"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1671/versions",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "base_version": null
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Request-Id": "req_R1e2F3u4S5e6D7v8E9r0S1n2"
+        },
+        "body": {
+          "version": 1,
+          "base_version": null,
+          "upload": {
+            "url": "{base}/storage/abysshub-uploads",
+            "fields": {
+              "key": "widgets/9e1d/v1/${filename}",
+              "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+              "X-Amz-Signature": "fake-signature-9e1dv1"
+            },
+            "prefix": "widgets/9e1d/v1",
+            "max_bytes": 524288000,
+            "expires_at": "2026-11-20T10:15:00Z"
+          },
+          "junk": {
+            "names": [
+              ".git",
+              "node_modules",
+              "__pycache__",
+              ".venv",
+              "*.egg-info"
+            ],
+            "markers": [
+              "pyvenv.cfg",
+              "conda-meta/"
+            ],
+            "root": [
+              ".env",
+              ".env.*"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/9e1d/v1/data/archive.zip",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-9e1dv1",
+          "file": "PK an archive"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/9e1d/v1/interface.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-9e1dv1",
+          "file": "[{\"type\": \"file\", \"name\": \"sheet\", \"label\": \"Spreadsheet\", \"isRequired\": true, \"mimes\": [\"xlsx\"], \"multiple\": false}]"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/9e1d/v1/requirements.txt",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-9e1dv1",
+          "file": "openpyxl==3.1.5\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/9e1d/v1/run.py",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-9e1dv1",
+          "file": "print('totals')\n"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "storage": true,
+      "parallel": true,
+      "request": {
+        "method": "POST",
+        "path": "/storage/abysshub-uploads",
+        "form": {
+          "key": "widgets/9e1d/v1/test_inputs.json",
+          "Policy": "eyJleHBpcmF0aW9uIjoiMjAyNi0xMS0yMFQxMDoxNTowMFoifQ==",
+          "X-Amz-Signature": "fake-signature-9e1dv1",
+          "file": "{\"sheet\": \"test/sales.xlsx\"}"
+        }
+      },
+      "response": {
+        "status": 204
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "path": "/v1/widgets/widget_1671/versions/1/commit",
+        "headers": {
+          "Authorization": "Bearer {key}"
+        },
+        "body": {
+          "interface": [
+            {
+              "type": "file",
+              "name": "sheet",
+              "label": "Spreadsheet",
+              "isRequired": true,
+              "mimes": [
+                "xlsx"
+              ],
+              "multiple": false
+            }
+          ]
+        }
+      },
+      "response": {
+        "status": 422,
+        "headers": {
+          "Request-Id": "req_P1r2O3j4E5c6T7r8E9f0U1s2"
+        },
+        "body": {
+          "error": {
+            "code": "project_invalid",
+            "message": "These files are not a Widget project, so nothing was saved: \"violations\" names each thing that is wrong. Fix them all, then open a new Project Version and send the files again.",
+            "doc_url": "https://abysshub.com/docs#project_invalid",
+            "violations": [
+              {
+                "code": "extension_refused",
+                "path": "data/archive.zip",
+                "message": "The file [data/archive.zip] has a disallowed extension [zip]."
+              }
+            ]
+          },
+          "request_id": "req_P1r2O3j4E5c6T7r8E9f0U1s2"
+        }
+      }
+    }
+  ],
+  "outcome": {
+    "exit": 1,
+    "printed": [
+      "test/sales.xlsx",
+      "thumbnail.png",
+      "project_invalid"
+    ],
+    "written": {}
+  }
+}

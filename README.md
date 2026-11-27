@@ -49,7 +49,7 @@ export ABYSS_API_KEY=abyss_sk_...   # a key with Manage Widgets, from your Cave
 uvx abysshub publish my-widget      # or: pip install abysshub && abysshub publish my-widget
 ```
 
-Run it again in the same folder to publish a new version. `abysshub status my-widget` shows the Widget on Abyss beside the folder, and `abysshub pull my-widget` takes a listing changed on the website into the folder.
+Run it again in the same folder to publish a new version. `abysshub status my-widget` shows the Widget on Abyss beside the folder, and `abysshub pull my-widget` takes a listing changed on the website into the folder. To take over a Widget first published on the website, write its id into `abyss.json` as `"widget": {"id": "widget_<number>"}` and pull: the folder becomes its source.
 
 ## License
 

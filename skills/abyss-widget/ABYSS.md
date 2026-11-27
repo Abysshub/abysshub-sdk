@@ -72,14 +72,14 @@ At the root of `<widget>/`, beside `interface.json`:
   }
   ```
 
-  `"visibility": "private"` stays unless the Creator asked you to list the Widget; `free_runs` (0 to 10) matters only on a paid one. The command writes a `widget` block into this file as it goes: which Widget the folder is, and what it was at the last publish or pull. Never write or edit that block; keep the file with the folder (and in version control, when the project is under it), since it is how a later publish finds the same Widget.
+  `"visibility": "private"` stays unless the Creator asked you to list the Widget; `free_runs` (0 to 10) matters only on a paid one. The command writes a `widget` block into this file as it goes: which Widget the folder is, and what it was at the last publish or pull. Never write or edit that block, except its `id` when the folder takes over a Widget first published on the website (step 6); keep the file with the folder (and in version control, when the project is under it), since it is how a later publish finds the same Widget.
 - **The Test Inputs**, `test_inputs.json`, hold the Test Run's input from step 2: a JSON object with one value for each Field's name, written as a Case's `input` is (PORT.md, step 2), except that a file Field's value is the path of a file inside `<widget>/` as a plain string, never `{"file": …}`, or a list of paths for a multi-file Field. Copy that file from the Case into `<widget>/test/`, never at the root (WIDGET.md, "How inputs reach `run.py`"). A Field it leaves out takes its `default`.
 
   ```json
   {"table": "test/customers.csv", "drop_empty": "yes"}
   ```
 
-The command uploads `test_inputs.json` and the files it names with the rest of the folder, and never uploads the Publish File, the thumbnail it names, or a root `.env`.
+The command uploads `test_inputs.json` with the rest of the folder, and never uploads the Publish File, the thumbnail it names, or a root `.env`. A file that `test_inputs.json` names goes up only as the Test Run's input: it is left out of the Widget's files (a `Left out …` line) and does not ship with the Widget, so a Test Input may be a file type Abyss refuses as project content, a spreadsheet for instance.
 
 ### Publish
 
@@ -147,3 +147,5 @@ A change to a published Widget (a fix, a new Field, a new listing) is made in th
 
 - **with the command**, run `abysshub publish <widget>` again. It shows the live Widget beside the folder first, then publishes a new version of the same Widget, saves only the Listing Fields that changed, and prints the same link;
 - **on the website**, the Creator uploads the folder again and makes its Test Run, as in step 4.
+
+A Widget first published on the website can move to the command: write its id, `widget_<number>` from its page's address `…/widgets/<number>/<name>`, into `abyss.json` as `"widget": {"id": "widget_<number>"}`, and run `abysshub pull <widget>` (with the key, as above). It takes the Widget's listing and live version into the folder; from then on `abysshub status` and `abysshub publish` work on it as on a Widget the command published, and the next publish replaces its code with the folder's.

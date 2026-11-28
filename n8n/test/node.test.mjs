@@ -134,10 +134,17 @@ test("a key starting abyss_sk_dev_ goes to dev, unless the API URL is set to one
   const realFetch = globalThis.fetch;
   for (const [apiKey, url, reached] of [
     [devKey, "https://api.abysshub.com", "https://api.dev.abysshub.com"],
+    [devKey, "https://api.abysshub.com/", "https://api.dev.abysshub.com"],
+    [devKey, "https://api.abysshub.com//", "https://api.dev.abysshub.com"],
     [devKey, "", "https://api.dev.abysshub.com"],
+    [devKey, "  ", "https://api.dev.abysshub.com"],
     [devKey, "http://localhost:8000", "http://localhost:8000"],
+    [devKey, "http://localhost:8000//", "http://localhost:8000"],
     [KEY, "https://api.abysshub.com", "https://api.abysshub.com"],
+    [KEY, "https://api.abysshub.com//", "https://api.abysshub.com"],
+    [KEY, "", "https://api.abysshub.com"],
     [KEY, "http://localhost:8000", "http://localhost:8000"],
+    [KEY, "http://localhost:8000//", "http://localhost:8000"],
   ]) {
     const server = await replay(recording, { key: apiKey });
     const origins = new Set();

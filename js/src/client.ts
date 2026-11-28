@@ -73,6 +73,7 @@ export interface UploadRequest {
   size?: number;
 }
 
+/** `/v1`'s run routes, one method each. */
 export interface Runs {
   /** Uploads the input's files and presses with `"wait": false`: answers the run at once, `queued`. */
   create(widget: string, input: Input, options?: RunOptions): Promise<Run>;
@@ -85,6 +86,7 @@ export interface Runs {
 }
 
 export interface Widgets {
+  /** Reads a Widget: its price, Free Runs and `input_schema`. */
   get(widget: string, options?: CallOptions): Promise<Widget>;
 }
 
@@ -187,6 +189,7 @@ export class Abyss {
     });
   }
 
+  /** Answers the API Key making the call, with `GET /v1/key`. */
   key(options: CallOptions = {}): Promise<Key> {
     return this.#call(options, (call) => this.#get(call, `${this.baseURL}/v1/key`, isKey, "The key answered without a key."));
   }
@@ -244,6 +247,7 @@ export class Abyss {
     }, JSON.stringify(body));
   }
 
+  /** Asks for an upload with `POST /v1/widgets/{widget}/uploads`. */
   async #grant(call: Call, widgetURL: string, { field, filename, size }: UploadRequest): Promise<Upload> {
     // JSON.stringify leaves `size` out when it is undefined.
     const grant = await this.#send(
@@ -256,6 +260,7 @@ export class Abyss {
     return expect(grant, isUpload, "The upload answered without an id and a form.");
   }
 
+  /** Asks for an upload, sends the file to storage and answers its id. */
   async #upload(call: Call, widgetURL: string, field: string, filename: string, data: Blob): Promise<string> {
     const grant = await this.#grant(call, widgetURL, { field, filename, size: data.size });
     const form = new FormData();

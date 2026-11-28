@@ -42,7 +42,7 @@ export class AbyssApi implements ICredentialType {
 		request: {
 			// The node's base-URL rule (nodes/Abyss/api.ts), as an expression.
 			baseURL:
-				'={{ ["", "https://api.abysshub.com", "https://api.abysshub.com/"].includes(String($credentials.url || "").trim()) ? (String($credentials.apiKey).startsWith("abyss_sk_dev_") ? "https://api.dev.abysshub.com" : "https://api.abysshub.com") : $credentials.url }}',
+				'={{ ["", "https://api.abysshub.com"].includes(String($credentials.url || "").trim().replace(/\\/+$/, "")) ? (String($credentials.apiKey).startsWith("abyss_sk_dev_") ? "https://api.dev.abysshub.com" : "https://api.abysshub.com") : String($credentials.url).trim().replace(/\\/+$/, "") }}',
 			url: '/v1/key',
 		},
 	};

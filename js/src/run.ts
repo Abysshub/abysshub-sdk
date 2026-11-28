@@ -199,6 +199,7 @@ export class RunFile {
     });
   }
 
+  /** Downloads the file to `path`, making its folders, and answers `path`. */
   async save(path: string): Promise<string> {
     const [fs, { dirname }] = await Promise.all([nodeFS(), nodePath()]);
     const bytes = await this.read();

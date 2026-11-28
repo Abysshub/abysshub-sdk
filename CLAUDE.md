@@ -5,7 +5,7 @@ The official libraries for the Abyss API (`/v1`), written by hand: the npm packa
 ## Rules
 
 - The base branch is `main`. Issues live here: `gh issue … -R Abysshub/abysshub-sdk`.
-- Words: `CONTEXT.md` is the glossary. Its platform-terms section is generated from the api's `CONTEXT.md`, so change a platform word there, never in the copy. Decisions: `docs/adr/`. A decision that shapes `/v1` itself belongs to the api's ADRs.
+- Words: `CONTEXT.md` is the glossary. It holds only the words the sdk adds; a platform word is the api's, as `contract/openapi.json` uses it. Decisions: `docs/adr/`. A decision that shapes `/v1` itself belongs to the api's ADRs.
 - `contract/openapi.json` is `/v1`'s contract, copied from the api's `develop`. Never edit it by hand: the workspace root refreshes it with `make sdk-contract`. When a refresh turns the exchange validation red, the libraries need a Slice.
 - **Both libraries pass the same `exchanges/`, with the same outcome.** A change to `exchanges/` keeps JS, Python and n8n green. A recorded command (`call.command`) is the exception: the `abysshub` command and the routes that change a Widget are Python's alone (ADR-0001).
 - **JS has no runtime dependency** and runs on Node 20+; in a browser `new Abyss()` throws. **Python has one, `httpx`,** and runs on 3.9+, with a sync `Abyss` and an async `AsyncAbyss` that share methods and exchanges. The n8n node has none, by n8n's verified-node rules. Each package has a test of its dependency rule.
